@@ -2,6 +2,13 @@
 extends Node3D
 class_name ControlPanel
 
+@export var text: String = "Control Panel":
+	set(value):
+		text = value
+		var _text_mesh_instance: MeshInstance3D = $PanelText
+		var _text_mesh: TextMesh = _text_mesh_instance.mesh
+		_text_mesh.text = text
+
 @export var button_data: Array[PushButtonData] = []:
 	set(value):
 		if value.size() > 16:

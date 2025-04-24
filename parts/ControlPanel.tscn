@@ -1,4 +1,4 @@
-[gd_scene load_steps=6 format=3 uid="uid://v3teu101y2p3"]
+[gd_scene load_steps=8 format=3 uid="uid://v3teu101y2p3"]
 
 [ext_resource type="Script" uid="uid://dfpawb7a4yk2i" path="res://src/ControlPanel/control_panel.gd" id="1_c0ofm"]
 
@@ -14,8 +14,16 @@ material = SubResource("StandardMaterial3D_fq63k")
 [sub_resource type="BoxShape3D" id="BoxShape3D_fq63k"]
 size = Vector3(1.8, 2, 0.5)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c0ofm"]
+albedo_color = Color(0, 0, 0, 1)
+
+[sub_resource type="TextMesh" id="TextMesh_bhnsi"]
+material = SubResource("StandardMaterial3D_c0ofm")
+font_size = 10
+
 [node name="ControlPanel" type="Node3D"]
 script = ExtResource("1_c0ofm")
+text = null
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 transform = Transform3D(1.77241, 0, 0, 0, 2.11, 0, 0, 0, 0.5, -0.00257456, 0, -0.000247717)
@@ -32,4 +40,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.0853746)
 shape = SubResource("BoxShape3D_fq63k")
 
 [node name="SegmentsContainer" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0.021)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.0590203, 0.021)
+
+[node name="PanelText" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.854784, 0.230027)
+mesh = SubResource("TextMesh_bhnsi")
