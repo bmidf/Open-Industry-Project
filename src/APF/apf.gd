@@ -962,6 +962,16 @@ func _on_simulation_started() -> void:
 	_simulating = true
 	_trip_elapsed = 0.0
 	_connection_elapsed = 0.0
+	# Snap the assigned conveyor to 0 at sim start. The drive begins
+	# stopped (`running == false`, `_belt_speed == 0`); without this push
+	# the `_physics_process` early-exit skips the first write and any
+	# editor-default belt speed (e.g. 2 m/s) keeps moving.
+	_belt_speed = 0.0
+	_last_ramp_target = 0.0
+	_last_written_belt_speed = 0.0
+	if _conveyor and "speed" in _conveyor:
+		_conveyor.set("speed", 0.0)
+	_update_fpm_label()
 	if not enable_comms:
 		return
 	_connection_faulted_tag.register(tag_group_name, connection_faulted_tag_name)
