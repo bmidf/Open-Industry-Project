@@ -301,6 +301,15 @@ func _handle_connection_fault_on_demand() -> void:
 		tag_group_name = value
 		tag_groups = value
 
+## Device prefix used to auto-fill every tag-name field below
+## (e.g. `UL20_20_VFD` → `UL20_20_VFD:I.ConnectionFaulted`, …).
+## Setting this overwrites every `*_tag_name` field; clearing it blanks them.
+@export var tag_prefix: String = "":
+	set(value):
+		tag_prefix = value
+		_apply_tag_prefix(value)
+		notify_property_list_changed()
+
 # Write tags (we send these values to the PLC).
 ## ConnectionFaulted tag.[br]Datatype: [code]BOOL[/code]
 @export var connection_faulted_tag_name: String = ""
@@ -447,6 +456,36 @@ func _validate_property(property: Dictionary) -> void:
 	for field: String in tag_fields:
 		if OIPCommsSetup.validate_tag_property(property, "tag_group_name", "tag_groups", field):
 			return
+
+
+# Suffix templates for `tag_prefix` auto-fill. APF uses Rockwell I/O semantics:
+# `:I.*` for tags the drive pushes to the PLC, `:O.*` for tags the PLC commands.
+const _TAG_TEMPLATES: Dictionary = {
+	"connection_faulted_tag_name": ":I.ConnectionFaulted",
+	"keypad_hand_mode_tag_name": ":I.KeypadHandMode",
+	"disconnect_closed_tag_name": ":I.DisconnectClosed",
+	"fault_tag_name": ":I.Fault",
+	"running_tag_name": ":I.Running",
+	"safe_torque_enabled_tag_name": ":I.SafeTorqueEnabled",
+	"output_current_tag_name": ":I.OutputCurrent",
+	"output_voltage_tag_name": ":I.OutputVoltage",
+	"velocity_tag_name": ":I.Velocity",
+	"trip_fault_code_tag_name": ":I.TripFaultCode",
+	"stop_tag_name": ":O.Stop",
+	"start_tag_name": ":O.Start",
+	"direction_cmd_0_tag_name": ":O.DirectionCmd_0",
+	"direction_cmd_1_tag_name": ":O.DirectionCmd_1",
+	"commanded_velocity_tag_name": ":O.CommandedVelocity",
+	"clear_fault_tag_name": ":O.ClearFault",
+	"dynamic_accel_time_tag_name": ":O.DynamicAccelTime",
+	"dynamic_decel_time_tag_name": ":O.DynamicDecelTime",
+}
+
+
+func _apply_tag_prefix(prefix: String) -> void:
+	for property: String in _TAG_TEMPLATES:
+		var suffix: String = _TAG_TEMPLATES[property]
+		set(property, prefix + suffix if prefix != "" else "")
 
 
 func _enter_tree() -> void:

@@ -136,35 +136,43 @@ var safety_tripped: bool:
 		tag_group_name = value
 		tag_groups = value
 
-# Pushbutton inputs (panel → PLC). Default names follow the AOI signature
-# the user provided; rename per instance to re-target a different device.
-@export var start_pb_tag_name: String = "MCM09_Start_PB_I"
-@export var stop_pb_tag_name: String = "MCM09_Stop_PB_I"
-@export var motor_fault_reset_pb_tag_name: String = "MCM09_Motor_Fault_Reset_PB_I"
-@export var jam_restart_pb_tag_name: String = "MCM09_Jam_Restart_PB_I"
-@export var low_air_pressure_reset_pb_tag_name: String = "MCM09_Low_Air_Pressure_Reset_PB_I"
-@export var power_branch_fault_reset_pb_tag_name: String = "MCM09_Power_Branch_Fault_Reset_PB_I"
-@export var communication_fault_reset_pb_tag_name: String = "MCM09_Communication_Fault_Reset_PB_I"
+## Device prefix used to auto-fill every tag-name field below
+## (e.g. `MCM09` → `MCM09_Start_PB_I`, …).
+## Setting this overwrites every `*_tag_name` field; clearing it blanks them.
+@export var tag_prefix: String = "":
+	set(value):
+		tag_prefix = value
+		_apply_tag_prefix(value)
+		notify_property_list_changed()
+
+# Pushbutton inputs (panel → PLC). Names auto-fill from `tag_prefix`.
+@export var start_pb_tag_name: String = ""
+@export var stop_pb_tag_name: String = ""
+@export var motor_fault_reset_pb_tag_name: String = ""
+@export var jam_restart_pb_tag_name: String = ""
+@export var low_air_pressure_reset_pb_tag_name: String = ""
+@export var power_branch_fault_reset_pb_tag_name: String = ""
+@export var communication_fault_reset_pb_tag_name: String = ""
 
 # E-Stop dual channels (NC safety: TRUE while not pressed, FALSE while engaged).
-@export var estop_ch1_tag_name: String = "MCM09_EStop_PB_CH1_I"
-@export var estop_ch2_tag_name: String = "MCM09_EStop_PB_CH2_I"
+@export var estop_ch1_tag_name: String = ""
+@export var estop_ch2_tag_name: String = ""
 
 # Status inputs (panel → PLC).
-@export var ups_fault_tag_name: String = "MCM09_UPS_Fault_I"
-@export var on_ups_tag_name: String = "MCM09_On_UPS_I"
-@export var ups_low_tag_name: String = "MCM09_UPS_Low_I"
-@export var nat_switch_fault_tag_name: String = "MCM09_NAT_Switch_Fault_I"
-@export var fire_relay_tag_name: String = "MCM09_Fire_Relay_I"
+@export var ups_fault_tag_name: String = ""
+@export var on_ups_tag_name: String = ""
+@export var ups_low_tag_name: String = ""
+@export var nat_switch_fault_tag_name: String = ""
+@export var fire_relay_tag_name: String = ""
 
 # Lamp commands (PLC → panel). Drive button cap glow via _tag_group_polled.
-@export var start_lt_tag_name: String = "MCM09_Start_PB_LT_O"
-@export var motor_fault_reset_lt_tag_name: String = "MCM09_Motor_Fault_Reset_PB_LT_O"
-@export var jam_restart_lt_tag_name: String = "MCM09_Jam_Restart_PB_LT_O"
-@export var low_air_pressure_reset_lt_tag_name: String = "MCM09_Low_Air_Pressure_Reset_PB_LT_O"
-@export var power_branch_fault_reset_lt_tag_name: String = "MCM09_Power_Branch_Fault_Reset_PB_LT_O"
-@export var communication_fault_reset_lt_tag_name: String = "MCM09_Communication_Fault_Reset_PB_LT_O"
-@export var estop_actuated_lt_tag_name: String = "MCM09_EStop_Actuated_LT_O"
+@export var start_lt_tag_name: String = ""
+@export var motor_fault_reset_lt_tag_name: String = ""
+@export var jam_restart_lt_tag_name: String = ""
+@export var low_air_pressure_reset_lt_tag_name: String = ""
+@export var power_branch_fault_reset_lt_tag_name: String = ""
+@export var communication_fault_reset_lt_tag_name: String = ""
+@export var estop_actuated_lt_tag_name: String = ""
 
 const _CLOSED_POSITION := Vector3(-0.001, 0.0, -0.003)
 const _OPEN_POSITION := Vector3(-0.457, -0.002, 0.272)
@@ -294,6 +302,39 @@ func _validate_property(property: Dictionary) -> void:
 	for field: String in tag_fields:
 		if OIPCommsSetup.validate_tag_property(property, "tag_group_name", "tag_groups", field):
 			return
+
+
+# Suffix templates for `tag_prefix` auto-fill. Matches the AOI signature:
+# `_<Signal>_I` for inputs (panel → PLC) and `_<Signal>_LT_O` for lamp outputs.
+const _TAG_TEMPLATES: Dictionary = {
+	"start_pb_tag_name": "_Start_PB_I",
+	"stop_pb_tag_name": "_Stop_PB_I",
+	"motor_fault_reset_pb_tag_name": "_Motor_Fault_Reset_PB_I",
+	"jam_restart_pb_tag_name": "_Jam_Restart_PB_I",
+	"low_air_pressure_reset_pb_tag_name": "_Low_Air_Pressure_Reset_PB_I",
+	"power_branch_fault_reset_pb_tag_name": "_Power_Branch_Fault_Reset_PB_I",
+	"communication_fault_reset_pb_tag_name": "_Communication_Fault_Reset_PB_I",
+	"estop_ch1_tag_name": "_EStop_PB_CH1_I",
+	"estop_ch2_tag_name": "_EStop_PB_CH2_I",
+	"ups_fault_tag_name": "_UPS_Fault_I",
+	"on_ups_tag_name": "_On_UPS_I",
+	"ups_low_tag_name": "_UPS_Low_I",
+	"nat_switch_fault_tag_name": "_NAT_Switch_Fault_I",
+	"fire_relay_tag_name": "_Fire_Relay_I",
+	"start_lt_tag_name": "_Start_PB_LT_O",
+	"motor_fault_reset_lt_tag_name": "_Motor_Fault_Reset_PB_LT_O",
+	"jam_restart_lt_tag_name": "_Jam_Restart_PB_LT_O",
+	"low_air_pressure_reset_lt_tag_name": "_Low_Air_Pressure_Reset_PB_LT_O",
+	"power_branch_fault_reset_lt_tag_name": "_Power_Branch_Fault_Reset_PB_LT_O",
+	"communication_fault_reset_lt_tag_name": "_Communication_Fault_Reset_PB_LT_O",
+	"estop_actuated_lt_tag_name": "_EStop_Actuated_LT_O",
+}
+
+
+func _apply_tag_prefix(prefix: String) -> void:
+	for property: String in _TAG_TEMPLATES:
+		var suffix: String = _TAG_TEMPLATES[property]
+		set(property, prefix + suffix if prefix != "" else "")
 
 
 ## Build the list of pilot-aim targets:
