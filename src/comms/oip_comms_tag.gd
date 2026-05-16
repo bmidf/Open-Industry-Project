@@ -42,6 +42,14 @@ func on_group_initialized(group: String) -> bool:
 
 
 func is_ready() -> bool:
+	# When the DLL exposes is_tag_ready_h, ask it directly. This reflects
+	# the underlying tag's actual readiness — false during the gap after a
+	# sim stop/restart (slots being re-created) and true once libplctag has
+	# real PLC data in the cache. Without this, _group_init stays sticky
+	# across sim restarts and device scripts read 0 / pop "not initialized"
+	# until the scene is reloaded.
+	if _handle >= 0 and OIPComms.has_method(&"is_tag_ready_h"):
+		return _register_ok and OIPComms.is_tag_ready_h(_handle)
 	return _register_ok and _group_init
 
 
