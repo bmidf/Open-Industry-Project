@@ -79,7 +79,7 @@ func _on_size_changed() -> void:
 
 func _physics_process(delta: float) -> void:
 	if conveyor and EditorInterface.is_simulation_running() and &"speed" in conveyor:
-		_conveyor_stopped = conveyor.speed == 0
+		_conveyor_stopped = is_zero_approx(conveyor.speed)
 
 	if disable or _conveyor_stopped or not EditorInterface.is_simulation_running():
 		return

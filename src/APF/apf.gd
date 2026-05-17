@@ -189,6 +189,11 @@ const PILOT_AIM_RANGE: float = 3.0
 ## (auto-timer or `connection_fault_on_demand`) before auto-clearing.
 @export_range(0.1, 600.0, 0.1, "suffix:s") var connection_fault_duration_seconds: float = 2.0
 
+## How long `fault` stays true after a trip fires (auto-timer or
+## `trip_on_demand`) before auto-clearing. `trip_fault_code` is cleared
+## at the same time, so the PLC sees the code only while `fault` is high.
+@export_range(0.1, 600.0, 0.1, "suffix:s") var fault_duration_seconds: float = 6.0
+
 ## Click in the inspector to trigger a random trip immediately.
 ## Auto-resets to false on the next frame (acts as a momentary button).
 ## The actual trip is deferred so the inspector's commit cycle finishes
@@ -607,14 +612,22 @@ static func _ensure_fault_codes_loaded() -> void:
 	_fault_codes_cache = out
 
 
-## Set fault + a fresh trip code drawn from the real CIP fault list.
-## No-op if already faulted.
+## Pulse `fault` true with a fresh trip code drawn from the real CIP fault
+## list, then auto-clear both after `fault_duration_seconds`. No-op if
+## already faulted.
 func _trigger_random_trip() -> void:
 	if fault:
 		return
 	_ensure_fault_codes_loaded()
 	trip_fault_code = _fault_codes_cache[randi() % _fault_codes_cache.size()]
 	fault = true
+	await get_tree().create_timer(fault_duration_seconds).timeout
+	# `_simulating` may have flipped off (scene closed) during the await; check
+	# we still exist before mutating state. Also bail if a PLC `clear_fault`
+	# rising edge already cleared the trip — nothing to do.
+	if is_inside_tree() and fault:
+		trip_fault_code = 0
+		fault = false
 
 
 ## Pulse `connection_faulted` true for `connection_fault_duration_seconds`,
