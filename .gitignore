@@ -16,3 +16,18 @@ oip_data/
 
 #Other
 .vs/
+
+# Python venv & bytecode
+venv/
+.venv/
+env/
+.env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+pyvenv.cfg
