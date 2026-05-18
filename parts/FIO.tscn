@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://b748m6m2vp247"]
+
+[ext_resource type="PackedScene" uid="uid://btoyswv7lu5iu" path="res://assets/3DModels/FIO/MURR_FIO.glb" id="1_cemou"]
+[ext_resource type="Script" path="res://src/Fio/fio.gd" id="2_script"]
+
+[node name="Fio" type="Node3D" unique_id=850737716]
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
+script = ExtResource("2_script")
+tag_group_name = "TagGroup0"
+
+[node name="MURR_FIO" parent="." unique_id=160296202 instance=ExtResource("1_cemou")]
+
+[editable path="MURR_FIO"]

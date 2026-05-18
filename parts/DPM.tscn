@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://iqy45qctm431"]
+
+[ext_resource type="PackedScene" uid="uid://dxu24tpc2oqyo" path="res://assets/3DModels/DPM/DPM.glb" id="1_evgyf"]
+[ext_resource type="Script" path="res://src/Dpm/dpm.gd" id="2_script"]
+
+[node name="Dpm" type="Node3D" unique_id=912957239]
+transform = Transform3D(0.5, 0, 0, 0, 0.9526107, 0, 0, 0, 0.5, 0, 0, 0)
+script = ExtResource("2_script")
+tag_group_name = "TagGroup0"
+
+[node name="DPM" parent="." unique_id=641419069 instance=ExtResource("1_evgyf")]
+
+[editable path="DPM"]
