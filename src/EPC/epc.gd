@@ -19,14 +19,41 @@ const PILOT_TRIPPED_COLOR: Color = Color(1, 0, 0, 1)
 		if _label:
 			_label.text = label_text
 
-## Trip state. true = activated (mushroom in, channels LOW). false = normal.
+## Trip state. true = activated (mushroom in, channels LOW). false = normal
+## (mushroom out — but the safety chain stays open until the assigned
+## `reset_button` is pressed, see `reset_button_path`).
 @export var tripped: bool = false:
 	set(value):
 		if tripped == value:
 			return
 		tripped = value
+		# Latch on the trip rising edge when a reset button is assigned —
+		# the safety chain must wait for the operator's reset press before
+		# re-energising even after the cord is physically released.
+		if value and _reset_button:
+			_reset_required = true
 		_animate_button_position()
 		_update_outputs()
+
+## Observable safety state used by APF's safe-torque chain. True while
+## either the cord is physically pulled OR a reset is still pending after
+## the cord was released. Channels and the pilot lens deliberately track
+## the *physical* `tripped` only — the latch lives entirely inside the
+## drive's STO logic so the panel feedback stays honest.
+var safety_chain_open: bool:
+	get:
+		return tripped or _reset_required
+
+## Path to a [PushButton] (or any node exposing a `pressed: bool`) that
+## clears the latched safety chain. When assigned, a trip on this EPC
+## sets an internal `reset_required` flag that survives the physical
+## `tripped → false` transition — the chain only fully clears on a rising
+## edge of the button's `pressed` property while `tripped == false`.
+## Leave empty to disable latching; the chain then tracks `tripped` 1:1.
+@export var reset_button_path: NodePath:
+	set(value):
+		reset_button_path = value
+		_resolve_reset_button()
 
 ## Channel 1 output (BOOL). HIGH when normal, LOW when tripped (fail-safe NC).
 @export var channel_1: bool = true:
@@ -50,6 +77,12 @@ var _button_cap_initial_y: float = 0.0
 var _pilot_material_made_unique: bool = false
 var _channel_1_tag := OIPCommsTag.new()
 var _channel_2_tag := OIPCommsTag.new()
+var _reset_button: Node = null
+## True while the safety chain is latched waiting for a reset press.
+## Set on `tripped` rising edge when a `reset_button_path` is assigned;
+## cleared by a rising edge on the reset button while `tripped == false`.
+var _reset_required: bool = false
+var _prev_reset_pressed: bool = false
 
 @export_category("Communications")
 ## Enable communication with external PLC/control systems.
@@ -93,8 +126,45 @@ func _ready() -> void:
 		_apply_button_position()
 	if _label:
 		_label.text = label_text
+	_resolve_reset_button()
+	# Scenes that start with `tripped == true` and a reset button assigned
+	# need the latch pre-set so the chain doesn't appear ready before the
+	# operator has acknowledged.
+	if _reset_button and tripped:
+		_reset_required = true
 	_update_outputs()
 	_update_pilot_lens()
+
+
+func _resolve_reset_button() -> void:
+	_reset_button = null
+	if not is_inside_tree():
+		# `_ready` will re-run this once the tree is built.
+		return
+	if reset_button_path.is_empty():
+		# Unassigning the button drops any latched state — without a way
+		# to acknowledge, leaving APF gated open is worse than the
+		# original non-latching behaviour.
+		_reset_required = false
+		return
+	_reset_button = get_node_or_null(reset_button_path)
+
+
+func _physics_process(_delta: float) -> void:
+	if not EditorInterface.is_simulation_running():
+		return
+	if not _reset_button or not is_instance_valid(_reset_button):
+		return
+	if not "pressed" in _reset_button:
+		return
+	var now: bool = bool(_reset_button.get("pressed"))
+	# Rising edge on the reset button while the cord is back in its rest
+	# position clears the latch. Holding the cord pulled (`tripped`)
+	# blocks reset so the chain can't be silenced from the panel while a
+	# real fault is still present.
+	if now and not _prev_reset_pressed and not tripped:
+		_reset_required = false
+	_prev_reset_pressed = now
 
 
 func use() -> void:

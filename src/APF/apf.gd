@@ -658,13 +658,18 @@ func _resolve_epcs() -> void:
 			_epcs.append(node)
 
 
-## Returns true if any assigned EPC reports `tripped == true`. Empty list
-## (no EPCs assigned) → returns false (no constraint).
+## Returns true if any assigned EPC's safety chain is open. Prefers the
+## EPC's `safety_chain_open` flag (which stays HIGH after a physical
+## reset until the panel reset button acknowledges) and falls back to
+## the raw `tripped` for older / mock nodes. Empty list → false.
 func _any_epc_tripped() -> bool:
 	for epc: Node in _epcs:
 		if not is_instance_valid(epc):
 			continue
-		if "tripped" in epc and bool(epc.get("tripped")):
+		if "safety_chain_open" in epc:
+			if bool(epc.get("safety_chain_open")):
+				return true
+		elif "tripped" in epc and bool(epc.get("tripped")):
 			return true
 	return false
 
