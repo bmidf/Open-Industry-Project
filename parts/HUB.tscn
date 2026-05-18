@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://v2naw0up7gt8"]
+
+[ext_resource type="PackedScene" uid="uid://bq2yxwje7gtoo" path="res://assets/3DModels/HUB/HUB.glb" id="1_w0rpk"]
+[ext_resource type="Script" path="res://src/Hub/hub.gd" id="2_script"]
+
+[node name="Hub" type="Node3D" unique_id=107316681]
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 0, 0)
+script = ExtResource("2_script")
+tag_group_name = "TagGroup0"
+
+[node name="HUB" parent="." unique_id=248588825 instance=ExtResource("1_w0rpk")]
+
+[editable path="HUB"]
