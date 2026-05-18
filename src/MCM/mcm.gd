@@ -137,15 +137,19 @@ var safety_tripped: bool:
 		tag_groups = value
 
 ## Device prefix used to auto-fill every tag-name field below
-## (e.g. `MCM09` → `MCM09_Start_PB_I`, …).
-## Setting this overwrites every `*_tag_name` field; clearing it blanks them.
+## (e.g. `MCM09` → `MCM09_Start_PB_I`, …). Setting this in the inspector
+## overwrites every `*_tag_name` field; clearing it blanks them. The
+## auto-fill only runs after the scene has finished loading, so saved tag
+## names on existing scenes are preserved instead of being clobbered when
+## Godot replays the property setters during deserialization.
 @export var tag_prefix: String = "":
 	set(value):
 		tag_prefix = value
-		_apply_tag_prefix(value)
-		notify_property_list_changed()
+		if _loaded:
+			_apply_tag_prefix(value)
+			notify_property_list_changed()
 
-# Pushbutton inputs (panel → PLC). Names auto-fill from `tag_prefix`.
+# Pushbutton inputs (panel → PLC). Auto-filled by `tag_prefix` when edited.
 @export var start_pb_tag_name: String = ""
 @export var stop_pb_tag_name: String = ""
 @export var motor_fault_reset_pb_tag_name: String = ""
@@ -230,6 +234,12 @@ var _estop_actuated_lt_tag := OIPCommsTag.new()
 var _es_indicator_meshes: Array[MeshInstance3D] = []
 var _es_indicator_unique: bool = false
 
+## False until `_ready` finishes. Gates the `tag_prefix` setter so the
+## auto-fill only runs from inspector edits, not from Godot replaying
+## saved property values during scene deserialization (which would
+## clobber the saved `*_tag_name` strings).
+var _loaded: bool = false
+
 ## Per-status-lamp render state. Keyed by lamp node name (matches the
 ## `lamp` field of `_STATUS_LAMPS`). Each entry:
 ##   meshes: Array[MeshInstance3D]  — the glow surfaces under the lamp
@@ -270,6 +280,7 @@ func _ready() -> void:
 	_drive_status_lamp("ups_low", ups_low)
 	_drive_status_lamp("nat_switch_fault", nat_switch_fault)
 	_drive_status_lamp("fire_relay", fire_relay)
+	_loaded = true
 
 
 func _validate_property(property: Dictionary) -> void:
