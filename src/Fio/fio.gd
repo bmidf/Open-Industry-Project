@@ -96,6 +96,17 @@ func _ready() -> void:
 	_update_led()
 
 
+## Pilot-mode E (and editor "Use" shortcut) toggles the comms-fault state.
+## Fires a pulse path through the auto-fault timer when going TRUE so the
+## device clears itself after the configured duration; manual clear is
+## immediate.
+func use() -> void:
+	if communication_faulted:
+		communication_faulted = false
+	else:
+		_trigger_comm_fault()
+
+
 func _process(delta: float) -> void:
 	if not _simulating:
 		return

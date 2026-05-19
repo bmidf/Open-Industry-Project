@@ -1,13 +1,35 @@
-[gd_scene load_steps=3 format=3 uid="uid://iqy45qctm431"]
+[gd_scene load_steps=4 format=3 uid="uid://iqy45qctm431"]
 
 [ext_resource type="PackedScene" uid="uid://dxu24tpc2oqyo" path="res://assets/3DModels/DPM/DPM.glb" id="1_evgyf"]
-[ext_resource type="Script" path="res://src/Dpm/dpm.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://sipu7r46us7h" path="res://src/Dpm/dpm.gd" id="2_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_onbm8"]
+resource_local_to_scene = true
+resource_name = "LED_Green"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.15
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_dpm_collision"]
+size = Vector3(1.4, 1.0, 0.6)
 
 [node name="Dpm" type="Node3D" unique_id=912957239]
-transform = Transform3D(0.5, 0, 0, 0, 0.9526107, 0, 0, 0, 0.5, 0, 0, 0)
+transform = Transform3D(0.3, 0, 0, 0, 0.572, 0, 0, 0, 0.3, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
 [node name="DPM" parent="." unique_id=641419069 instance=ExtResource("1_evgyf")]
+
+[node name="SW_LED_Dome" parent="DPM" index="200" unique_id=2128127210]
+surface_material_override/0 = SubResource("StandardMaterial3D_onbm8")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=179917425]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500344]
+shape = SubResource("BoxShape3D_dpm_collision")
 
 [editable path="DPM"]

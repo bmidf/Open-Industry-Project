@@ -3,11 +3,20 @@
 [ext_resource type="PackedScene" uid="uid://bq2yxwje7gtoo" path="res://assets/3DModels/HUB/HUB.glb" id="1_w0rpk"]
 [ext_resource type="Script" path="res://src/Hub/hub.gd" id="2_script"]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_hub_collision"]
+size = Vector3(2.0, 2.0, 1.5)
+
 [node name="Hub" type="Node3D" unique_id=107316681]
 transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
 [node name="HUB" parent="." unique_id=248588825 instance=ExtResource("1_w0rpk")]
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=179917426]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500345]
+shape = SubResource("BoxShape3D_hub_collision")
 
 [editable path="HUB"]

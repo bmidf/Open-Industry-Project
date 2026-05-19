@@ -1,13 +1,35 @@
-[gd_scene load_steps=3 format=3 uid="uid://b748m6m2vp247"]
+[gd_scene load_steps=4 format=3 uid="uid://b748m6m2vp247"]
 
 [ext_resource type="PackedScene" uid="uid://btoyswv7lu5iu" path="res://assets/3DModels/FIO/MURR_FIO.glb" id="1_cemou"]
-[ext_resource type="Script" path="res://src/Fio/fio.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://7jrepu1havjd" path="res://src/Fio/fio.gd" id="2_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6udej"]
+resource_local_to_scene = true
+resource_name = "LED_Green"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.15
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_fio_collision"]
+size = Vector3(2.0, 2.0, 1.5)
 
 [node name="Fio" type="Node3D" unique_id=850737716]
-transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
+transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
 [node name="MURR_FIO" parent="." unique_id=160296202 instance=ExtResource("1_cemou")]
+
+[node name="LED_Dome" parent="MURR_FIO" index="13" unique_id=2139756447]
+surface_material_override/0 = SubResource("StandardMaterial3D_6udej")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=179917424]
+collision_layer = 3
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500343]
+shape = SubResource("BoxShape3D_fio_collision")
 
 [editable path="MURR_FIO"]
