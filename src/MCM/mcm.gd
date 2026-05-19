@@ -125,6 +125,70 @@ var safety_tripped: bool:
 	get:
 		return fire_relay or estop_engaged
 
+@export_category("Button Triggers")
+
+## Click any of these to fire the same press the pilot-mode `E` key would
+## trigger on that button — runs the press tween, momentary tag pulse,
+## and (for `press_estop`) the latching toggle. The bool auto-unchecks
+## itself so each click is one press. Useful for scripting or for testing
+## the panel without entering pilot mode.
+
+@export var press_start: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_start
+		press_start = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "S_Btn")
+
+@export var press_stop: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_stop
+		press_stop = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "STPB_Btn")
+
+@export var press_motor_fault_reset: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_motor_fault_reset
+		press_motor_fault_reset = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "MF_Btn")
+
+@export var press_jam_restart: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_jam_restart
+		press_jam_restart = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "JR_Btn")
+
+@export var press_low_air_pressure_reset: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_low_air_pressure_reset
+		press_low_air_pressure_reset = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "LAP_Btn")
+
+@export var press_power_branch_fault_reset: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_power_branch_fault_reset
+		press_power_branch_fault_reset = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "PBFR_Btn")
+
+@export var press_communication_fault_reset: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_communication_fault_reset
+		press_communication_fault_reset = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "CFR_Btn")
+
+@export var press_estop: bool = false:
+	set(value):
+		var rising_edge: bool = value and not press_estop
+		press_estop = value
+		if rising_edge:
+			call_deferred(&"_trigger_button_by_name", "EStop_Cap")
+
 @export_category("Communications")
 
 ## Enable communication with external PLC/control systems.
@@ -734,6 +798,30 @@ func _update_interaction_prompt() -> void:
 			_interaction_prompt.text = "[E] %s %s" % [verb, btn_label]
 		else:
 			_interaction_prompt.text = "[E] Press %s" % btn_label
+
+
+## Dispatched by the inspector `press_*` momentary toggles. Looks up the
+## matching `_targets` entry by `raw_name` and runs the same `_press_button`
+## path pilot-mode E uses. The trigger bool auto-resets here so each
+## inspector click is one press.
+func _trigger_button_by_name(raw_name: String) -> void:
+	for entry: Dictionary in _targets:
+		if String(entry.get("kind", "")) != "button":
+			continue
+		if String(entry.get("raw_name", "")) == raw_name:
+			_press_button(entry)
+			break
+	# Clear the matching trigger bool — order doesn't matter, only one
+	# setter rising-edge could have queued this call.
+	match raw_name:
+		"S_Btn": press_start = false
+		"STPB_Btn": press_stop = false
+		"MF_Btn": press_motor_fault_reset = false
+		"JR_Btn": press_jam_restart = false
+		"LAP_Btn": press_low_air_pressure_reset = false
+		"PBFR_Btn": press_power_branch_fault_reset = false
+		"CFR_Btn": press_communication_fault_reset = false
+		"EStop_Cap": press_estop = false
 
 
 ## Edge-triggered E acts on whatever the pilot is aimed at: the door (if
