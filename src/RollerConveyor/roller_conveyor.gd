@@ -8,8 +8,13 @@ signal roller_skew_angle_changed(skew_angle_degrees: float)
 signal speed_changed(new_speed: float)
 signal roller_override_material_changed(material: Material)
 
-const CIRCUMFERENCE: float = 2.0 * PI * Roller.RADIUS
-const ROLLERS_Y_OFFSET: float = -0.12
+## Roller tube size and pitch, as a matched real-world duty class.
+@export var roller_class: RollerSpec.DutyClass = RollerSpec.DutyClass.HEAVY:
+	set(value):
+		if roller_class == value:
+			return
+		roller_class = value
+		_apply_roller_class()
 
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 4.0:
 	set(value):
@@ -72,7 +77,7 @@ const ROLLERS_Y_OFFSET: float = -0.12
 ## Openings in conveyor-local X (origin at tail, 0..length). arc-length == X (single-segment).
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_side_guard_rebuild)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _request_side_guard_rebuild, false, _guard_arc_bounds())
 		side_guard_openings = value
 		_request_side_guard_rebuild()
 
@@ -198,8 +203,7 @@ var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
 var _metal_material: Material
-var _rollers: Rollers
-var _ends: Node3D
+var _rollers: AbstractRollerContainer
 var _roller_material: BaseMaterial3D
 var _simple_conveyor_shape: StaticBody3D
 var _transfer_plate_discharge: MeshInstance3D
@@ -207,11 +211,13 @@ var _transfer_plate_infeed: MeshInstance3D
 var _transfer_plate_discharge_opp: MeshInstance3D
 var _transfer_plate_infeed_opp: MeshInstance3D
 var _transfer_plate_material: StandardMaterial3D
-var _shadow_plate: MeshInstance3D
 var _side_guards: Array[SideGuard] = []
+var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _legs: Array[Node3D] = []
 var _side_guard_rebuild_pending: bool = false
 var _legs_refresh_pending: bool = false
+var _roller_refresh_pending: bool = false
+var _last_grid_anchor: Variant = null
 const _MIN_GUARD_LEN: float = 0.05
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
@@ -261,6 +267,7 @@ func _enter_tree() -> void:
 		running = EditorInterface.is_simulation_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -287,6 +294,7 @@ var local_bbox: AABB:
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Engine.is_editor_hint():
@@ -307,7 +315,7 @@ func _ready() -> void:
 	_setup_collision_shape()
 	_setup_roller_initialization()
 	_setup_material()
-	_setup_shadow_plate()
+	_remove_legacy_shadow_plate()
 	_setup_transfer_plates()
 	_last_size = Vector3.ZERO
 	_on_size_changed()
@@ -316,6 +324,7 @@ func _ready() -> void:
 	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_side_guard_rebuild)
 	_rebuild_side_guards()
 	_rebuild_legs()
+	_request_roller_refresh()
 	_bind_snap_meta_now()
 
 
@@ -332,6 +341,9 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_request_legs_refresh()
+		_request_side_guard_rebuild()
+		_request_roller_refresh()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _get_scale_warning_text() -> String:
@@ -406,7 +418,10 @@ func _physics_process(_delta: float) -> void:
 		_legs_state = ConveyorLeg.capture_leg_state(self)
 	if running and _roller_material:
 		var roller_speed := speed / cos(deg_to_rad(skew_angle)) if absf(skew_angle) < 89.0 else speed
-		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + roller_speed * _delta / CIRCUMFERENCE, 1.0)
+		var circumference := 2.0 * PI * _roller_radius()
+		# Multiply by tiles-per-wrap (uv1_scale.x) so the surface tracks the belt at no-slip speed.
+		var bands: float = _roller_material.uv1_scale.x
+		_roller_material.uv1_offset.x = fmod(_roller_material.uv1_offset.x + bands * roller_speed * _delta / circumference, 1.0)
 
 
 func set_roller_override_material(material: Material) -> void:
@@ -414,13 +429,10 @@ func set_roller_override_material(material: Material) -> void:
 	roller_override_material_changed.emit(material)
 
 
-func _setup_shadow_plate() -> void:
-	_shadow_plate = get_node_or_null("ShadowPlate")
-	if not _shadow_plate:
-		_shadow_plate = MeshInstance3D.new()
-		_shadow_plate.name = "ShadowPlate"
-		_shadow_plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		add_child(_shadow_plate)
+func _remove_legacy_shadow_plate() -> void:
+	var existing := get_node_or_null("ShadowPlate")
+	if existing:
+		existing.queue_free()
 
 
 func _setup_material() -> void:
@@ -433,15 +445,9 @@ func _setup_roller_initialization() -> void:
 	set_roller_override_material(load("res://assets/3DModels/Materials/Metall2.tres").duplicate(true))
 
 	_rollers = get_node_or_null("Rollers")
-	_ends = get_node_or_null("Ends")
 
 	if _rollers:
 		_setup_roller_container(_rollers)
-
-	if _ends:
-		for end in _ends.get_children():
-			if end is RollerConveyorEnd:
-				_setup_roller_container(end)
 
 
 func _setup_roller_container(container: AbstractRollerContainer) -> void:
@@ -455,10 +461,37 @@ func _setup_roller_container(container: AbstractRollerContainer) -> void:
 	width_changed.connect(container.set_width)
 	length_changed.connect(container.set_length)
 
+	if container is MultiMeshRollers:
+		var mm: MultiMeshRollers = container
+		roller_override_material_changed.connect(mm.set_roller_override_material)
+		mm.set_roller_override_material(_roller_material)
+
+	container.roller_radius = _roller_radius()
+	container.roller_pitch = roller_pitch()
 	container.setup_existing_rollers()
 	container.set_roller_skew_angle(skew_angle)
 	container.set_width(size.z)
 	container.set_length(size.x)
+
+
+func _roller_radius() -> float:
+	return RollerSpec.radius(roller_class)
+
+func roller_pitch() -> float:
+	return RollerSpec.pitch(roller_class)
+
+
+func _apply_roller_class() -> void:
+	if not is_inside_tree():
+		return
+	if _rollers:
+		_rollers.set_roller_radius(_roller_radius())
+		_rollers.set_roller_pitch(roller_pitch())
+	_update_component_positions()
+	_update_transfer_plates()
+	ConveyorSnapping.notify_contacts_rebuild(self)
+	if Engine.is_editor_hint():
+		update_gizmos()
 
 
 func _setup_conveyor_physics() -> void:
@@ -513,25 +546,10 @@ func _update_component_positions() -> void:
 
 	var rollers_node := get_node_or_null("Rollers")
 	if rollers_node:
-		rollers_node.position = Vector3(0.2, ROLLERS_Y_OFFSET, 0)
+		rollers_node.position = Vector3(0, -_roller_radius(), 0)
 		rollers_node.scale = Vector3.ONE
-
-	var ends_node := get_node_or_null("Ends")
-	if ends_node:
-		ends_node.position = Vector3(0, ROLLERS_Y_OFFSET - 0.16, 0)
-
-		var end1 := ends_node.get_node_or_null("RollerConveyorEnd")
-		var end2 := ends_node.get_node_or_null("RollerConveyorEnd2")
-
-		var end_offset := 0.165
-		if end1:
-			end1.position = Vector3(size.x - end_offset, 0, 0)
-			end1.rotation_degrees = Vector3(0, 0, 0)
-			end1.scale = Vector3.ONE
-		if end2:
-			end2.position = Vector3(end_offset, 0, 0)
-			end2.rotation_degrees = Vector3(0, 180, 0)
-			end2.scale = Vector3.ONE
+		if rollers_node is MultiMeshRollers:
+			rollers_node.set_clip_span(0.0, size.x)
 
 
 func _update_width() -> void:
@@ -585,15 +603,12 @@ func _on_size_changed() -> void:
 		if _simple_conveyor_shape:
 			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0)
 
-		if _shadow_plate:
-			var box := BoxMesh.new()
-			box.size = Vector3(size.x, 0.01, size.z)
-			_shadow_plate.mesh = box
-			_shadow_plate.position = Vector3(size.x / 2.0, -size.y, 0)
-
 		_update_flow_arrow()
 		_rebuild_side_guards()
 		_rebuild_legs()
+		ConveyorSnapping.notify_contacts_rebuild(self)
+		if Engine.is_editor_hint():
+			update_gizmos()
 
 
 func _on_roller_added(roller: Roller) -> void:
@@ -610,8 +625,8 @@ func _on_simulation_started() -> void:
 	running = true
 	_update_conveyor_velocity()
 	if enable_comms:
-		_speed_tag.register(speed_tag_group_name, speed_tag_name)
-		_running_tag.register(running_tag_group_name, running_tag_name)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_FLOAT32)
+		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
 func _on_simulation_ended() -> void:
@@ -685,13 +700,13 @@ func _update_transfer_plates() -> void:
 	var tail_x: float = 0.0
 	var half_w := size.z / 2.0
 	var skew_rad := deg_to_rad(skew_angle)
-	var plate_y := ROLLERS_Y_OFFSET + Roller.RADIUS
+	var plate_y := 0.0
 	var skew_zone := half_w * absf(tan(skew_rad))
 	# Inset toward the conveyor center from each end where the angled rollers reach full length.
 	var head_inset: float = head_x - skew_zone
 	var tail_inset: float = tail_x + skew_zone
 	var z_sign := signf(skew_angle)
-	var skirt_depth := Roller.RADIUS * 2.0
+	var skirt_depth := _roller_radius() * 2.0
 
 	for plate in plates:
 		plate.visible = true
@@ -777,24 +792,57 @@ func _request_side_guard_rebuild() -> void:
 	call_deferred("_rebuild_side_guards")
 
 
+func _request_rebuild() -> void:
+	_request_side_guard_rebuild()
+	_request_roller_refresh()
+
+
+func _request_roller_refresh() -> void:
+	if _roller_refresh_pending or not is_inside_tree():
+		return
+	_roller_refresh_pending = true
+	call_deferred("_refresh_rollers")
+
+
+func _refresh_rollers() -> void:
+	_roller_refresh_pending = false
+	if not (_rollers is MultiMeshRollers) or not is_inside_tree():
+		return
+	var mm: MultiMeshRollers = _rollers
+	var grid: Dictionary = ConveyorSnapping.resolve_roller_grid(self)
+	var anchor: Variant = grid.anchor
+	mm.set_grid(anchor, not bool(grid.back_butt), not bool(grid.front_butt))
+	# On anchor change, re-ping so the curve's phase propagates down the chain; gated so it settles.
+	if _grid_anchor_changed(anchor, _last_grid_anchor):
+		_last_grid_anchor = anchor
+		ConveyorSnapping.notify_contacts_rebuild(self)
+
+
+func get_roller_grid_anchor() -> Variant:
+	return _last_grid_anchor
+
+
+static func _grid_anchor_changed(a: Variant, b: Variant) -> bool:
+	var a_vec: bool = a is Vector3
+	var b_vec: bool = b is Vector3
+	if a_vec and b_vec:
+		return not (a as Vector3).is_equal_approx(b as Vector3)
+	return a_vec != b_vec
+
+
+## True arc extent of the side guard (origin at tail), default span for a new opening.
+func _guard_arc_bounds() -> Vector2:
+	return Vector2(0.0, size.x)
+
+
 func _openings_for_side(side: String) -> Array[Vector2]:
-	var ranges: Array[Vector2] = []
-	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
-			continue
-		var s: float = o.arc_back
-		var e: float = o.arc_front
-		if e <= s:
-			continue
-		ranges.append(Vector2(s, e))
-	ranges.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
-	var merged: Array[Vector2] = []
-	for r: Vector2 in ranges:
-		if merged.is_empty() or r.x > merged[-1].y:
-			merged.append(r)
-		else:
-			merged[-1] = Vector2(merged[-1].x, maxf(merged[-1].y, r.y))
-	return merged
+	# Single segment, origin at tail: manual and derived openings share conveyor-local X,
+	# so no manual offset.
+	return SideGuardOpening.merge_openings_for_side(side, side_guard_openings, 0.0, _derived_side_guard_openings)
+
+
+func _derive_side_guard_openings() -> void:
+	_derived_side_guard_openings = ConveyorSnapping.derive_openings_by_geometry(self)
 
 
 func _subdivide_around_openings(start_x: float, end_x: float, openings: Array[Vector2]) -> Array[Vector2]:
@@ -821,6 +869,7 @@ func _rebuild_side_guards() -> void:
 	_side_guard_rebuild_pending = false
 	if not is_inside_tree():
 		return
+	_derive_side_guard_openings()
 	_side_guards.clear()
 	var keep := PackedStringArray()
 	var half_w: float = size.z * 0.5

@@ -116,7 +116,8 @@ func _physics_process(_delta: float) -> void:
 	if _scan_tick % 4 != 0:
 		return
 	var start_pos := global_position
-	var end_pos := start_pos + global_transform.basis.z * max_range
+	var dir := global_transform.basis.z.normalized()
+	var end_pos := start_pos + dir * max_range
 
 	_ray_query.from = start_pos
 	_ray_query.to = end_pos
@@ -138,7 +139,7 @@ func _physics_process(_delta: float) -> void:
 	distance = new_distance
 
 	var current_transform := global_transform
-	var beam_end := start_pos + global_transform.basis.z * new_distance
+	var beam_end := start_pos + dir * new_distance
 	if _beam_needs_update or new_distance != _last_distance or beam_color != _last_beam_color or current_transform != _last_transform:
 		if show_beam:
 			_update_beam_mesh(start_pos, new_distance, beam_color)
@@ -155,7 +156,7 @@ func _update_beam_mesh(start_pos: Vector3, beam_distance: float, beam_color: Col
 	_mesh.surface_set_color(beam_color)
 	_mesh.surface_add_vertex(start_pos)
 	_mesh.surface_set_color(beam_color)
-	_mesh.surface_add_vertex(start_pos + global_transform.basis.z * beam_distance)
+	_mesh.surface_add_vertex(start_pos + global_transform.basis.z.normalized() * beam_distance)
 	_mesh.surface_end()
 
 

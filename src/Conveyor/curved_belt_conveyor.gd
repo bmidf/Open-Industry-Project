@@ -151,7 +151,7 @@ func _apply_physics_material() -> void:
 ## Openings in arc-length (m) along average radius. Side: [code]"inner"[/code]/[code]"outer"[/code].
 @export var side_guard_openings: Array[SideGuardOpening] = []:
 	set(value):
-		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _rebuild_side_guards)
+		SideGuardOpening.sync_change_listeners(side_guard_openings, value, _rebuild_side_guards, true, _guard_arc_bounds())
 		side_guard_openings = value
 		_rebuild_side_guards()
 
@@ -419,7 +419,7 @@ func _ready() -> void:
 		add_child(_shadow_plate)
 
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
-	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards)
+	SideGuardOpening.sync_change_listeners([], side_guard_openings, _rebuild_side_guards, true)
 
 	_recalculate_speeds()
 	_update_belt_ends()
@@ -453,6 +453,7 @@ func _update_all_components() -> void:
 	_update_side_guards()
 	_update_assembly_components()
 	_update_flow_arrow()
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _create_end_body(body_name: String) -> StaticBody3D:
@@ -525,6 +526,11 @@ func _avg_radius() -> float:
 	return inner_radius + width * 0.5
 
 
+## Side-guard arc extent for a new opening's default span. arc 0 is the back tangent, not the body start.
+func _guard_arc_bounds() -> Vector2:
+	return Vector2(0.0, _avg_radius() * deg_to_rad(conveyor_angle) + height)
+
+
 func _natural_arc_total() -> float:
 	return _avg_radius() * deg_to_rad(conveyor_angle) + 2.0 * (height * 0.5)
 
@@ -532,7 +538,8 @@ func _natural_arc_total() -> float:
 func _openings_for_side(side: String) -> Array[Vector2]:
 	var ranges: Array[Vector2] = []
 	for o: SideGuardOpening in side_guard_openings:
-		if o == null or o.side != side:
+		# subtract openings are keep-closed overrides, not cutters; ignore them here.
+		if o == null or o.side != side or o.subtract:
 			continue
 		var s: float = o.arc_back
 		var e: float = o.arc_front
@@ -639,6 +646,7 @@ func _emit_curved_guard(guard_name: String, sub_back_arc: float, sub_front_arc: 
 
 const _LEG_TAIL_NAME := "Leg_Tail"
 const _LEG_HEAD_NAME := "Leg_Head"
+const _LEG_CENTER_NAME := "Leg_Center"
 const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 
 func _rebuild_legs() -> void:
@@ -710,6 +718,10 @@ func _compute_curved_leg_specs(avg_r: float, conveyor_angle_deg: float) -> Array
 				specs.append({"name": "%s%d" % [_LEG_MIDDLE_PREFIX, idx], "angle_deg": pos})
 				idx += 1
 			pos += spacing_deg
+	elif avg_r * deg_to_rad(conveyor_angle_deg) > middle_legs_spacing:
+		var center: float = conveyor_angle_deg * 0.5
+		if not _is_angle_excluded_deg(center, avg_r):
+			specs.append({"name": _LEG_CENTER_NAME, "angle_deg": center})
 	if head_end_leg_enabled and coverage_max >= 0.0 and coverage_max <= conveyor_angle_deg \
 			and not _is_angle_excluded_deg(coverage_max, avg_r):
 		specs.append({"name": _LEG_HEAD_NAME, "angle_deg": coverage_max})
@@ -982,9 +994,11 @@ func _enter_tree() -> void:
 	EditorInterface.simulation_started.connect(_on_simulation_started)
 	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
+	ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _exit_tree() -> void:
+	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
@@ -997,6 +1011,7 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_rebuild_legs()
+		ConveyorSnapping.notify_contacts_rebuild(self)
 
 
 func _get_scale_warning_text() -> String:
@@ -1057,8 +1072,8 @@ func _on_simulation_started() -> void:
 	_update_belt_ends()
 
 	if enable_comms:
-		_speed_tag.register(speed_tag_group_name, speed_tag_name)
-		_running_tag.register(running_tag_group_name, running_tag_name)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_FLOAT32)
+		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
 func _on_simulation_ended() -> void:

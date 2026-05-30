@@ -4,10 +4,22 @@ extends ResizableNode3D
 
 ## OSHA-compliant safety guard rail. X = run length, Y = height, faces local +Z.
 
-@export var steel_color: Color = Color(0.85, 0.75, 0.15):
+@export var steel_color: Color = Color(0.95, 0.74, 0.06):
 	set(value):
 		steel_color = value
 		_update_material_color()
+
+@export var omit_post_start: bool = false:
+	set(value):
+		omit_post_start = value
+		if is_node_ready():
+			_rebuild()
+
+@export var omit_post_end: bool = false:
+	set(value):
+		omit_post_end = value
+		if is_node_ready():
+			_rebuild()
 
 @onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
 @onready var _collision_body: StaticBody3D = $StaticBody3D
@@ -52,8 +64,7 @@ func _setup_material() -> void:
 
 func _update_material_color() -> void:
 	if _material:
-		var c := steel_color
-		_material.set_shader_parameter("color", Vector3(c.r, c.g, c.b))
+		_material.set_shader_parameter("color", steel_color)
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
@@ -81,7 +92,7 @@ func _rebuild() -> void:
 	var length := size.x
 	var height := size.y
 
-	_mesh_instance.mesh = GuardRailMesh.create(length, height)
+	_mesh_instance.mesh = GuardRailMesh.create(length, height, omit_post_start, omit_post_end)
 
 	if _mesh_instance.mesh and _mesh_instance.mesh.get_surface_count() > 0:
 		_mesh_instance.set_surface_override_material(0, _material)
@@ -89,8 +100,7 @@ func _rebuild() -> void:
 	if _collision_shape and _collision_shape.shape is BoxShape3D:
 		(_collision_shape.shape as BoxShape3D).size = Vector3(
 			length, height, GuardRailMesh.POST_SIZE)
-		_collision_shape.position = Vector3(
-			0, height / 2.0, GuardRailMesh.POST_SIZE / 2.0)
+		_collision_shape.position = Vector3(0, height / 2.0, 0)
 
 
 func _get_custom_preview_node() -> Node3D:
