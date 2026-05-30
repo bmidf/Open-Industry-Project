@@ -1092,7 +1092,10 @@ func _on_simulation_ended() -> void:
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
 	_speed_tag.on_group_initialized(tag_group_name_param)
+	var was_running_ready: bool = _running_tag.is_ready()
 	_running_tag.on_group_initialized(tag_group_name_param)
+	if not was_running_ready and _running_tag.is_ready():
+		_running_tag.write_bit(speed != 0.0)
 
 
 func _tag_group_polled(tag_group_name_param: String) -> void:
