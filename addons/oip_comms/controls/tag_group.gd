@@ -20,12 +20,76 @@ var save_data := {}
 @onready var port: LineEdit = $Row2/PortRow/Port
 @onready var port_row: HBoxContainer = $Row2/PortRow
 @onready var port_label: Label = $Row2/PortRow/PortLabel
+@onready var read_stats: Label = $Row3/ReadStats
+@onready var write_stats: Label = $Row3/WriteStats
+@onready var write_queue_stats: Label = $Row3/WriteQueueStats
+@onready var poll_cycle_stats: Label = $Row3/PollCycleStats
 
 var loading_complete := false
+
+# Throttle native getter calls to ~5 Hz; cheaper than every-frame and avoids
+# spamming the singleton across all tag-group rows.
+const _STATS_REFRESH_INTERVAL: float = 0.2
+var _stats_refresh_accum: float = 0.0
 
 func _ready() -> void:
 	_load()
 	update_protocol(protocol.selected, true)
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	_stats_refresh_accum += delta
+	if _stats_refresh_accum < _STATS_REFRESH_INTERVAL:
+		return
+	_stats_refresh_accum = 0.0
+
+	if not is_instance_valid(read_stats) or not is_instance_valid(write_stats) \
+			or not is_instance_valid(write_queue_stats) or not is_instance_valid(poll_cycle_stats):
+		return
+	var group_name: String = _name.text if is_instance_valid(_name) else ""
+	if group_name.is_empty() or not OIPComms.get_sim_running():
+		read_stats.text = "-/-"
+		write_stats.text = "-/-"
+		write_queue_stats.text = "-/-"
+		poll_cycle_stats.text = "-/-"
+		return
+
+	var r_count: int = OIPComms.get_read_latency_count(group_name)
+	if r_count == 0:
+		read_stats.text = "-/-"
+	else:
+		read_stats.text = "%.1f / %.1f" % [
+			OIPComms.get_read_latency_min_us(group_name) / 1000.0,
+			OIPComms.get_read_latency_max_us(group_name) / 1000.0,
+		]
+
+	var w_count: int = OIPComms.get_write_latency_count(group_name)
+	if w_count == 0:
+		write_stats.text = "-/-"
+	else:
+		write_stats.text = "%.1f / %.1f" % [
+			OIPComms.get_write_latency_min_us(group_name) / 1000.0,
+			OIPComms.get_write_latency_max_us(group_name) / 1000.0,
+		]
+
+	var wq_count: int = OIPComms.get_write_queue_count(group_name)
+	if wq_count == 0:
+		write_queue_stats.text = "-/-"
+	else:
+		write_queue_stats.text = "%.1f / %.1f" % [
+			OIPComms.get_write_queue_min_us(group_name) / 1000.0,
+			OIPComms.get_write_queue_max_us(group_name) / 1000.0,
+		]
+
+	var pc_count: int = OIPComms.get_poll_cycle_count(group_name)
+	if pc_count == 0:
+		poll_cycle_stats.text = "-/-"
+	else:
+		poll_cycle_stats.text = "%.1f / %.1f" % [
+			OIPComms.get_poll_cycle_min_us(group_name) / 1000.0,
+			OIPComms.get_poll_cycle_max_us(group_name) / 1000.0,
+		]
 
 func save() -> void:
 	save_data["name"] = _name.text

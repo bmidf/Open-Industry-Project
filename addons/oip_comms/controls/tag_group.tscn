@@ -133,6 +133,49 @@ layout_mode = 2
 text = "Browse"
 visible = false
 
+[node name="Row3" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="ReadCallLabel" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(85, 0)
+text = "Read call (ms)"
+
+[node name="ReadStats" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "-/-"
+
+[node name="WriteCallLabel" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(85, 0)
+text = "Write call (ms)"
+
+[node name="WriteStats" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "-/-"
+
+[node name="WriteQueueLabel" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(95, 0)
+text = "Write queue (ms)"
+
+[node name="WriteQueueStats" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "-/-"
+
+[node name="PollCycleLabel" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(85, 0)
+text = "Poll cycle (ms)"
+
+[node name="PollCycleStats" type="Label" parent="Row3"]
+layout_mode = 2
+custom_minimum_size = Vector2(90, 0)
+text = "-/-"
+
 [node name="HSeparator" type="HSeparator" parent="."]
 layout_mode = 2
 
