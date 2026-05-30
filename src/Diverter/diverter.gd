@@ -41,6 +41,7 @@ func _ready() -> void:
 	if has_meta("is_preview"):
 		return
 	set_notify_transform(true)
+	_diverter_animator.divert_finished.connect(_on_divert_finished)
 
 
 func _notification(what: int) -> void:
@@ -61,11 +62,6 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	EditorInterface.simulation_started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
-
-func _ready() -> void:
-	if has_meta("is_preview"):
-		return
-	_diverter_animator.divert_finished.connect(_on_divert_finished)
 
 func get_snap_features() -> Array:
 	return [
