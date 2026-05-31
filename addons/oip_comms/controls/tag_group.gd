@@ -55,12 +55,15 @@ func _process(delta: float) -> void:
 		poll_cycle_stats.text = "-/-"
 		return
 
+	# Each stat shows min / avg / max (ms). avg is the arithmetic mean -- the
+	# "typical" latency, far less skewed by a lone spike than max.
 	var r_count: int = OIPComms.get_read_latency_count(group_name)
 	if r_count == 0:
 		read_stats.text = "-/-"
 	else:
-		read_stats.text = "%.1f / %.1f" % [
+		read_stats.text = "%.1f / %.1f / %.1f" % [
 			OIPComms.get_read_latency_min_us(group_name) / 1000.0,
+			OIPComms.get_read_latency_avg_us(group_name) / 1000.0,
 			OIPComms.get_read_latency_max_us(group_name) / 1000.0,
 		]
 
@@ -68,8 +71,9 @@ func _process(delta: float) -> void:
 	if w_count == 0:
 		write_stats.text = "-/-"
 	else:
-		write_stats.text = "%.1f / %.1f" % [
+		write_stats.text = "%.1f / %.1f / %.1f" % [
 			OIPComms.get_write_latency_min_us(group_name) / 1000.0,
+			OIPComms.get_write_latency_avg_us(group_name) / 1000.0,
 			OIPComms.get_write_latency_max_us(group_name) / 1000.0,
 		]
 
@@ -77,8 +81,9 @@ func _process(delta: float) -> void:
 	if wq_count == 0:
 		write_queue_stats.text = "-/-"
 	else:
-		write_queue_stats.text = "%.1f / %.1f" % [
+		write_queue_stats.text = "%.1f / %.1f / %.1f" % [
 			OIPComms.get_write_queue_min_us(group_name) / 1000.0,
+			OIPComms.get_write_queue_avg_us(group_name) / 1000.0,
 			OIPComms.get_write_queue_max_us(group_name) / 1000.0,
 		]
 
@@ -86,8 +91,9 @@ func _process(delta: float) -> void:
 	if pc_count == 0:
 		poll_cycle_stats.text = "-/-"
 	else:
-		poll_cycle_stats.text = "%.1f / %.1f" % [
+		poll_cycle_stats.text = "%.1f / %.1f / %.1f" % [
 			OIPComms.get_poll_cycle_min_us(group_name) / 1000.0,
+			OIPComms.get_poll_cycle_avg_us(group_name) / 1000.0,
 			OIPComms.get_poll_cycle_max_us(group_name) / 1000.0,
 		]
 

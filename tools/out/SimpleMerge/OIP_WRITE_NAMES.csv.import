@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dr8y4pqmnf4uo"
+
+[deps]
+
+files=["res://tools/out/SimpleMerge/OIP_WRITE_NAMES.name.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.datatype.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.source.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.source.translation"]
+
+source_file="res://tools/out/SimpleMerge/OIP_WRITE_NAMES.csv"
+dest_files=["res://tools/out/SimpleMerge/OIP_WRITE_NAMES.name.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.datatype.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.source.translation", "res://tools/out/SimpleMerge/OIP_WRITE_NAMES.source.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true
