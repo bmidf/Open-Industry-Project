@@ -1,5 +1,8 @@
 .godot/
 
+# Generated enumerator output (not versioned)
+tools/out/
+
 # Godot-specific ignores
 .import/
 export.cfg
