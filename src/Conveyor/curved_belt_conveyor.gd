@@ -1078,6 +1078,11 @@ func _on_simulation_ended() -> void:
 	for body: StaticBody3D in [_end_body1, _end_body2]:
 		if body:
 			body.constant_angular_velocity = Vector3.ZERO
+	# We just zeroed the body velocities, so the cache no longer reflects what's
+	# applied. Reset it (NAN) so the next run always re-pushes — otherwise a
+	# stop/start (or scene reload) with an unchanged speed skips the push and
+	# leaves boxes stuck on a stationary belt surface.
+	_last_pushed_angular_speed = NAN
 
 
 # Belt isn't moving while paused, so publish running=false; resuming restores
