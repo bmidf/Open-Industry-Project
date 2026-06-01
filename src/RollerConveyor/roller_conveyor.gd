@@ -264,6 +264,7 @@ func _enter_tree() -> void:
 	if Engine.is_editor_hint():
 		EditorInterface.simulation_started.connect(_on_simulation_started)
 		EditorInterface.simulation_stopped.connect(_on_simulation_ended)
+		EditorInterface.simulation_pause_toggled.connect(_on_simulation_set_paused)
 		running = EditorInterface.is_simulation_running()
 
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
@@ -302,6 +303,8 @@ func _exit_tree() -> void:
 			EditorInterface.simulation_started.disconnect(_on_simulation_started)
 		if EditorInterface.simulation_stopped.is_connected(_on_simulation_ended):
 			EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
+		if EditorInterface.simulation_pause_toggled.is_connected(_on_simulation_set_paused):
+			EditorInterface.simulation_pause_toggled.disconnect(_on_simulation_set_paused)
 
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 
@@ -636,6 +639,13 @@ func _on_simulation_ended() -> void:
 	_update_conveyor_velocity()
 	if _roller_material:
 		_roller_material.uv1_offset = Vector3.ZERO
+
+
+# Rollers aren't turning while paused, so publish running=false; resuming
+# restores the state from the current speed.
+func _on_simulation_set_paused(paused: bool) -> void:
+	if _running_tag.is_ready():
+		_running_tag.write_bit(not paused and speed != 0.0)
 
 
 func _tag_group_initialized(tag_group_name_param: String) -> void:
