@@ -1,27 +1,20 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bmfhdb5ckg6u3"]
 
-[ext_resource type="Script" path="res://addons/editor-pilot-mode/default_character.gd" id="1"]
+[ext_resource type="Script" uid="uid://diki87ylwpm5r" path="res://addons/editor-pilot-mode/default_character.gd" id="1"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.3
-height = 1.8
+height = 2.8
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
-radius = 0.3
-height = 1.8
-
-[node name="DefaultCharacter" type="CharacterBody3D"]
+[node name="DefaultCharacter" type="CharacterBody3D" unique_id=595234961]
 script = ExtResource("1")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1842761599]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0)
 shape = SubResource("CapsuleShape3D_1")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("CapsuleMesh_1")
+[node name="Head" type="Node3D" parent="." unique_id=1822576568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
 
-[node name="Head" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
-
-[node name="Camera3D" type="Camera3D" parent="Head"]
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=1928226877]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.22368681)

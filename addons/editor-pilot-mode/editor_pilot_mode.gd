@@ -13,6 +13,7 @@ const MOVE_BACK_PATH: String = "Pilot Mode/Move Back"
 const MOVE_LEFT_PATH: String = "Pilot Mode/Move Left"
 const MOVE_RIGHT_PATH: String = "Pilot Mode/Move Right"
 const JUMP_PATH: String = "Pilot Mode/Jump"
+const SPRINT_PATH: String = "Pilot Mode/Sprint"
 const SETTING_PATH: String = "addons/pilot_mode/scene/path"
 const DEFAULT_SCENE: String = "res://addons/editor-pilot-mode/default_character.tscn"
 
@@ -52,6 +53,7 @@ func _enter_tree() -> void:
 		_register_key_shortcut(editor_settings, MOVE_LEFT_PATH, KEY_A)
 		_register_key_shortcut(editor_settings, MOVE_RIGHT_PATH, KEY_D)
 		_register_key_shortcut(editor_settings, JUMP_PATH, KEY_SPACE)
+		_register_key_shortcut(editor_settings, SPRINT_PATH, KEY_SHIFT)
 
 	if not ProjectSettings.has_setting(SETTING_PATH):
 		ProjectSettings.set_setting(SETTING_PATH, DEFAULT_SCENE)
@@ -214,6 +216,7 @@ func enter_pilot_mode(_camera: Camera3D, canvas_viewport: Viewport, node3d_viewp
 	_setup_action_from_shortcut(editor_settings, MOVE_LEFT_PATH, "pilot_move_left")
 	_setup_action_from_shortcut(editor_settings, MOVE_RIGHT_PATH, "pilot_move_right")
 	_setup_action_from_shortcut(editor_settings, JUMP_PATH, "pilot_jump")
+	_setup_action_from_shortcut(editor_settings, SPRINT_PATH, "pilot_sprint")
 
 	_cursor_position_before_pilot = DisplayServer.mouse_get_position()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

@@ -6,7 +6,7 @@ Pilot any scene directly in the Godot 3D editor. Press `Shift+R` to drop into yo
 
 - Spawns a character at the editor camera position and takes over the 3D viewport
 - Hides editor UI for an unobstructed view
-- Comes with a default first-person `CharacterBody3D` (WASD + mouse look + jump)
+- Comes with a default first-person `CharacterBody3D` (WASD + mouse look + jump + sprint)
 - Fully customizable and compatible with any scene that includes a `Camera3D`
 
 ## How to install
@@ -18,7 +18,7 @@ Pilot any scene directly in the Godot 3D editor. Press `Shift+R` to drop into yo
 
 1. Open any 3D scene in the editor.
 2. Press `Shift+R` to enter pilot mode.
-3. Move with `WASD`, look with the mouse, jump with `Space`.
+3. Move with `WASD`, look with the mouse, jump with `Space`, hold `Shift` to sprint.
 4. Press `Shift+R` or `Escape` to exit.
 
 The shortcut can be changed in **Editor > Editor Settings > Shortcuts** under *Pilot Mode*.

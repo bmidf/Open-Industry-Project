@@ -3,10 +3,26 @@ extends CharacterBody3D
 
 @export_category("Default Character")
 @export var move_speed: float = 3.5
+@export var sprint_multiplier: float = 2.0
 @export var mouse_sensitivity: float = 0.1
 @export var jump_velocity: float = 4.5
 @export_range(20.0, 85.0, 0.5, "degrees") var floor_max_angle_degrees: float = 58.0
 @export_range(0.0, 2.0, 0.01) var floor_snap_distance: float = 0.35
+
+@export_category("Body")
+## Total height of the procedurally built humanoid. Should match the collision capsule height.
+@export var body_height: float = 2.8
+@export var skin_color: Color = Color(0.92, 0.76, 0.62)
+@export var shirt_color: Color = Color(0.20, 0.45, 0.80)
+@export var pants_color: Color = Color(0.22, 0.24, 0.30)
+
+# The head is on this render layer; the pilot's own camera excludes it (the camera
+# sits inside it), while other viewports still show the full head. Everything else
+# uses the default layer so the body is visible from every view, including the
+# pilot's own first-person camera (so you see your torso/arms/hands/legs).
+# Uses the top render layer (20) to avoid colliding with layers the scene already
+# uses (e.g. Building walls are on layers 2 and 4).
+const _SELF_HIDDEN_LAYER: int = 1 << 19
 
 var _head: Node3D
 var _camera: Camera3D
@@ -23,6 +39,17 @@ var _held_pallet_rigid: RigidBody3D
 var _pallet_offset: Vector3 = Vector3.ZERO
 var _interact_key_text: String = "E"
 
+var _body: Node3D
+var _left_arm: Node3D
+var _right_arm: Node3D
+var _left_leg: Node3D
+var _right_leg: Node3D
+var _arm_length: float = 1.0
+var _walk_phase: float = 0.0
+var _walk_amp: float = 0.0
+var _reach_active: bool = false
+var _reach_point: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
 	if get_tree().edited_scene_root == self:
@@ -30,6 +57,9 @@ func _ready() -> void:
 
 	_head = $Head
 	_camera = $Head/Camera3D
+	# Eyes sit slightly in front of the body so looking down shows the chest receding
+	# toward the legs, instead of staring straight onto the top of the torso.
+	_camera.position.z = -0.18
 	_head.rotation.y = rotation.y
 	_head.rotation.x = clamp(rotation.x, deg_to_rad(-90), deg_to_rad(90))
 	rotation = Vector3.ZERO
@@ -61,12 +91,16 @@ func _ready() -> void:
 	_camera.add_child(_interact_text)
 
 	_hold_point = Marker3D.new()
-	_hold_point.position = Vector3(0, -0.5, -2.2)
+	_hold_point.position = Vector3(0, -0.6, -1.1)
 	_camera.add_child(_hold_point)
 
 	_interact_ray_query = PhysicsRayQueryParameters3D.new()
 	_interact_ray_query.collision_mask = 10
 	_interact_ray_query.collide_with_areas = true
+
+	# Don't render the character's own head/torso in first-person.
+	_camera.cull_mask &= ~_SELF_HIDDEN_LAYER
+	_build_body()
 
 
 func _physics_process(delta: float) -> void:
@@ -82,6 +116,8 @@ func _physics_process(delta: float) -> void:
 	var current_speed := move_speed
 	if held_pallet:
 		current_speed = move_speed * 0.6
+	if Input.is_action_pressed("pilot_sprint"):
+		current_speed *= sprint_multiplier
 
 	var input_dir := Vector2.ZERO
 	if Input.is_action_pressed("pilot_move_forward"):
@@ -117,10 +153,160 @@ func _physics_process(delta: float) -> void:
 	else:
 		_handle_interaction()
 
+	_update_body(delta)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_mouse_input += event.relative
+
+
+# --- Body construction ---
+
+func _build_body() -> void:
+	var h := body_height
+	_body = Node3D.new()
+	_body.name = "Body"
+	add_child(_body)
+
+	# Torso: a rounded capsule that spans from the hips (~0.48h) up to the shoulders
+	# (~0.82h). Kept visible (default layer) so the arms and legs don't look detached
+	# when you look down.
+	var torso := CapsuleMesh.new()
+	torso.radius = h * 0.105
+	torso.height = h * 0.36
+	var torso_mi := _make_part(_body, torso, shirt_color)
+	torso_mi.position = Vector3(0, h * 0.64, 0)
+
+	# Neck (bridges the torso top to the head so the head isn't floating)
+	var neck := CapsuleMesh.new()
+	neck.radius = h * 0.045
+	neck.height = h * 0.14
+	var neck_mi := _make_part(_body, neck, skin_color)
+	neck_mi.position = Vector3(0, h * 0.84, 0)
+
+	# Head
+	var head := SphereMesh.new()
+	head.radius = h * 0.075
+	head.height = h * 0.15
+	var head_mi := _make_part(_body, head, skin_color)
+	head_mi.position = Vector3(0, h * 0.89, 0)
+	head_mi.layers = _SELF_HIDDEN_LAYER
+
+	# Legs (point straight down, swing about X while walking)
+	var leg_len := h * 0.48
+	_left_leg = _make_limb(_body, Vector3(-h * 0.08, leg_len, 0), leg_len, h * 0.05, pants_color)
+	_right_leg = _make_limb(_body, Vector3(h * 0.08, leg_len, 0), leg_len, h * 0.05, pants_color)
+	_left_leg.rotation.x = deg_to_rad(-90.0)
+	_right_leg.rotation.x = deg_to_rad(-90.0)
+
+	# Arms (aimed at a target via look_at, with a hand at the tip). Shoulders sit on
+	# the torso's surface near its top so the arms connect to the body.
+	_arm_length = h * 0.42
+	_left_arm = _make_limb(_body, Vector3(-h * 0.11, h * 0.80, 0), _arm_length, h * 0.035, shirt_color)
+	_right_arm = _make_limb(_body, Vector3(h * 0.11, h * 0.80, 0), _arm_length, h * 0.035, shirt_color)
+	_make_hand(_left_arm, h)
+	_make_hand(_right_arm, h)
+
+
+func _make_part(parent: Node3D, mesh: Mesh, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mi.material_override = mat
+	parent.add_child(mi)
+	return mi
+
+
+# A limb is a pivot whose visible capsule extends along its local -Z axis,
+# so look_at() points the whole limb (and any hand at its tip) at a target.
+func _make_limb(parent: Node3D, pos: Vector3, length: float, radius: float, color: Color) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.position = pos
+	parent.add_child(pivot)
+	var cap := CapsuleMesh.new()
+	cap.radius = radius
+	cap.height = length
+	var mi := _make_part(pivot, cap, color)
+	mi.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	mi.position = Vector3(0, 0, -length * 0.5)
+	return pivot
+
+
+func _make_hand(arm: Node3D, h: float) -> void:
+	var hand := Node3D.new()
+	hand.position = Vector3(0, 0, -_arm_length)
+	arm.add_child(hand)
+	var box := BoxMesh.new()
+	box.size = Vector3(h * 0.05, h * 0.05, h * 0.05)
+	_make_part(hand, box, skin_color)
+
+
+# --- Body animation ---
+
+func _update_body(delta: float) -> void:
+	if not _body:
+		return
+
+	_body.rotation.y = _head.rotation.y
+
+	var planar := Vector2(velocity.x, velocity.z).length()
+	_update_legs(delta, planar)
+	_update_arms(delta)
+
+
+func _update_legs(delta: float, planar_speed: float) -> void:
+	_walk_amp = clamp(planar_speed * 0.06, 0.0, 0.5)
+	_walk_phase += delta * (4.0 + planar_speed)
+	var base := deg_to_rad(-90.0)
+	_left_leg.rotation.x = base + sin(_walk_phase) * _walk_amp
+	_right_leg.rotation.x = base + sin(_walk_phase + PI) * _walk_amp
+
+
+func _update_arms(delta: float) -> void:
+	var body_basis := _body.global_transform.basis
+	var down := Vector3.DOWN * (_arm_length * 0.9)
+	var fwd := -body_basis.z
+	var side := body_basis.x
+
+	# Arms rest angled slightly forward (out of the straight-down view) with a walk swing.
+	var rest_fwd := _arm_length * 0.3
+	var rest_left := _left_arm.global_position + down + fwd * (rest_fwd + sin(_walk_phase) * _walk_amp * 1.5)
+	var rest_right := _right_arm.global_position + down + fwd * (rest_fwd + sin(_walk_phase + PI) * _walk_amp * 1.5)
+
+	var left_target := rest_left
+	var right_target := rest_right
+
+	if held_box and is_instance_valid(_held_box_rigid):
+		var b := _held_box_rigid.global_position
+		left_target = b - side * 0.12
+		right_target = b + side * 0.12
+	elif held_pallet:
+		# Both hands forward on an imaginary pallet-jack handle.
+		var handle := _hold_point.global_position
+		left_target = handle - side * 0.15
+		right_target = handle + side * 0.15
+	elif _reach_active:
+		right_target = _reach_point
+
+	_aim_limb(_left_arm, left_target, delta)
+	_aim_limb(_right_arm, right_target, delta)
+
+
+func _aim_limb(pivot: Node3D, target: Vector3, delta: float) -> void:
+	var dir := target - pivot.global_position
+	if dir.length_squared() < 0.0001:
+		return
+	# Choose an up vector that isn't parallel to the aim direction.
+	var up := Vector3.UP
+	if absf(dir.normalized().dot(up)) > 0.99:
+		up = Vector3.FORWARD
+	var t := pivot.global_transform
+	var cur_q := t.basis.get_rotation_quaternion()
+	var tgt_q := Basis.looking_at(dir, up).get_rotation_quaternion()
+	t.basis = Basis(cur_q.slerp(tgt_q, clampf(delta * 12.0, 0.0, 1.0)))
+	pivot.global_transform = t
 
 
 # --- Interaction ---
@@ -132,6 +318,8 @@ func _handle_interaction() -> void:
 	_interact_ray_query.from = start_pos
 	_interact_ray_query.to = end_pos
 
+	_reach_active = false
+
 	var result := get_world_3d().direct_space_state.intersect_ray(_interact_ray_query)
 	if not result:
 		_interact_text.visible = false
@@ -140,6 +328,8 @@ func _handle_interaction() -> void:
 	var hit_object = result.collider.get_parent()
 
 	if hit_object is Box:
+		_reach_active = true
+		_reach_point = result.position
 		_interact_text.text = "Press '%s' to pick up!" % _interact_key_text
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
@@ -147,6 +337,8 @@ func _handle_interaction() -> void:
 		return
 
 	if hit_object is Pallet:
+		_reach_active = true
+		_reach_point = result.position
 		_interact_text.text = "Press '%s' to move pallet!" % _interact_key_text
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
@@ -154,6 +346,8 @@ func _handle_interaction() -> void:
 		return
 
 	if hit_object.has_method("use"):
+		_reach_active = true
+		_reach_point = result.position
 		_interact_text.text = "Press '%s' to use %s" % [_interact_key_text, hit_object.name]
 		_interact_text.visible = true
 		if InputMap.has_action("interact") and Input.is_action_just_pressed("interact"):
@@ -168,13 +362,19 @@ func _handle_interaction() -> void:
 func _pick_up_box(box) -> void:
 	held_box = box
 	_held_box_rigid = box.get_node("RigidBody3D") as RigidBody3D
+	# Carry the box kinematically so it follows the hold point exactly instead of
+	# fighting the physics solver (which caused jitter and inconsistent lifting).
+	_held_box_rigid.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	_held_box_rigid.freeze = true
 
 
 func _update_held_box(delta: float) -> void:
 	var rigid := _held_box_rigid
-	rigid.gravity_scale = 0
-	rigid.global_position = rigid.global_position.lerp(_hold_point.global_position, 8.0 * delta)
-	rigid.global_rotation = _hold_point.global_rotation
+	var weight := clampf(delta * 12.0, 0.0, 1.0)
+	var t := rigid.global_transform
+	t.origin = t.origin.lerp(_hold_point.global_position, weight)
+	t.basis = t.basis.slerp(_hold_point.global_transform.basis, weight)
+	rigid.global_transform = t
 
 	_interact_text.visible = false
 
