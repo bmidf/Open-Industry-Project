@@ -9,13 +9,13 @@ extends ResizableNode3D
 		steel_color = value
 		_update_material_color()
 
-@export var omit_post_start: bool = false:
+@export_storage var omit_post_start: bool = false:
 	set(value):
 		omit_post_start = value
 		if is_node_ready():
 			_rebuild()
 
-@export var omit_post_end: bool = false:
+@export_storage var omit_post_end: bool = false:
 	set(value):
 		omit_post_end = value
 		if is_node_ready():
@@ -65,6 +65,10 @@ func _setup_material() -> void:
 func _update_material_color() -> void:
 	if _material:
 		_material.set_shader_parameter("color", steel_color)
+
+
+func _get_active_resize_handle_ids() -> PackedInt32Array:
+	return PackedInt32Array([0, 1, 2, 3])
 
 
 func _get_constrained_size(new_size: Vector3) -> Vector3:
