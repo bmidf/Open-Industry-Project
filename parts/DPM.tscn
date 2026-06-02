@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://iqy45qctm431"]
+[gd_scene format=3 uid="uid://iqy45qctm431"]
 
 [ext_resource type="PackedScene" uid="uid://dxu24tpc2oqyo" path="res://assets/3DModels/DPM/DPM.glb" id="1_evgyf"]
 [ext_resource type="Script" uid="uid://sipu7r46us7h" path="res://src/Dpm/dpm.gd" id="2_script"]
@@ -14,10 +14,10 @@ emission = Color(0, 1, 0, 1)
 emission_energy_multiplier = 2.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_dpm_collision"]
-size = Vector3(1.4, 1.0, 0.6)
+size = Vector3(3.2188964, 0.4043579, 1.6779969)
 
 [node name="Dpm" type="Node3D" unique_id=912957239]
-transform = Transform3D(0.3, 0, 0, 0, 0.572, 0, 0, 0, 0.3, 0, 0, 0)
+transform = Transform3D(0.4, 0, 0, 0, 0.763, 0, 0, 0, 0.4, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
@@ -30,6 +30,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_onbm8")
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500344]
+transform = Transform3D(1, 0, 0, 0, 1.0000899, 0, 0, 0, 1, -0.009350553, 0.2032315, -0.0070893094)
 shape = SubResource("BoxShape3D_dpm_collision")
 
 [editable path="DPM"]

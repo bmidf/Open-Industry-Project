@@ -140,6 +140,7 @@ emission = Color(0, 1, 0, 1)
 [node name="Pdp" type="Node3D" unique_id=1903531951]
 transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
 script = ExtResource("2_pdp")
+tag_group_name = "TagGroup0"
 cb_tripped_1 = false
 cb_tripped_2 = false
 cb_tripped_3 = false
@@ -166,6 +167,32 @@ cb_tripped_23 = false
 cb_tripped_24 = false
 cb_tripped_25 = false
 cb_tripped_26 = false
+cb_tag_name_1 = ""
+cb_tag_name_2 = ""
+cb_tag_name_3 = ""
+cb_tag_name_4 = ""
+cb_tag_name_5 = ""
+cb_tag_name_6 = ""
+cb_tag_name_7 = ""
+cb_tag_name_8 = ""
+cb_tag_name_9 = ""
+cb_tag_name_10 = ""
+cb_tag_name_11 = ""
+cb_tag_name_12 = ""
+cb_tag_name_13 = ""
+cb_tag_name_14 = ""
+cb_tag_name_15 = ""
+cb_tag_name_16 = ""
+cb_tag_name_17 = ""
+cb_tag_name_18 = ""
+cb_tag_name_19 = ""
+cb_tag_name_20 = ""
+cb_tag_name_21 = ""
+cb_tag_name_22 = ""
+cb_tag_name_23 = ""
+cb_tag_name_24 = ""
+cb_tag_name_25 = ""
+cb_tag_name_26 = ""
 
 [node name="PDP" parent="." unique_id=237541764 instance=ExtResource("1_dft68")]
 
@@ -335,10 +362,10 @@ transform = Transform3D(0.02546379, 0, 0, 0, 0.5318074, 0, 0, 0, 0.005125, 0.159
 transform = Transform3D(0.02546379, 0, 0, 0, 0.5318074, 0, 0, 0, 0.005125, 0.6313146, -0.03253889, 0.0076250006)
 
 [node name="PMM_Body" parent="PDP" index="55" unique_id=1850206500]
-transform = Transform3D(0.07142283, 0, 0, 0, 0.045324493, 0, 0, 0, 0.008891122, 0.38816884, 0.22747609, 0.011374865)
+transform = Transform3D(0.13391985, 0, 0, 0, 0.10365075, 0, 0, 0, 0.008891122, 0.3851077, 0.22672153, 0.011374865)
 
 [node name="PMM_Display" parent="PDP" index="56" unique_id=1702864819]
-transform = Transform3D(0.044716902, 0, 0, 0, 0.030700672, 0, 0, 0, 0.00030925646, 0.37326318, 0.22747609, 0.020420615)
+transform = Transform3D(0.083845474, 0, 0, 0, 0.070208125, 0, 0, 0, 0.00030925646, 0.35715914, 0.22672153, 0.020420615)
 
 [node name="PMM_Btn_0" parent="PDP" index="57" unique_id=387921340]
 transform = Transform3D(0.0074528167, 0, 0, 0, 0.0060432656, 0, 0, 0, 0.00030925646, 0.43785426, 0.2637357, 0.02057524)
@@ -376,32 +403,32 @@ pixel_size = 0.001
 text = "PDP"
 
 [node name="TotalPower" type="Label3D" parent="PDP" unique_id=955399568]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.3465147, 0.25244632, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.307005, 0.28382495, 0.021731528)
 pixel_size = 0.0001
 text = "Total Power"
 
 [node name="TotalPowerNum" type="Label3D" parent="PDP" unique_id=551724542]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.39578068, 0.25244632, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.39938012, 0.28382495, 0.021731528)
 pixel_size = 0.0001
-text = "97 kW"
+text = "130 kW"
 
 [node name="KWHConsumedNum" type="Label3D" parent="PDP" unique_id=1639537358]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.39578068, 0.22733822, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.39938012, 0.22640625, 0.021731528)
 pixel_size = 0.0001
-text = "20200 kWh"
+text = "15613 kWh"
 
 [node name="MaxPowerNum" type="Label3D" parent="PDP" unique_id=1497766355]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.39578068, 0.20387448, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.39938012, 0.17274797, 0.021731528)
 pixel_size = 0.0001
-text = "178 kW"
+text = "215 kW"
 
 [node name="KWHConsumed" type="Label3D" parent="PDP" unique_id=1200407972]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.3518662, 0.22676328, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.31703916, 0.22509143, 0.021731528)
 pixel_size = 0.0001
 text = "KWH Consumed"
 
 [node name="MaxPower" type="Label3D" parent="PDP" unique_id=537810788]
-transform = Transform3D(1.731155, 0, 0, 0, 2.071679, 0, 0, 0, 0.25, 0.3465147, 0.20566197, 0.021731528)
+transform = Transform3D(3.2459652, 0, 0, 0, 4.737639, 0, 0, 0, 0.25, 0.307005, 0.17683569, 0.021731528)
 pixel_size = 0.0001
 text = "Max Power"
 
@@ -531,15 +558,15 @@ pixel_size = 0.001
 text = "CB26"
 
 [node name="PilotBezel_0" type="MeshInstance3D" parent="PDP" unique_id=2074319223]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.4382231, 0.22840145, 0.022002403)
+transform = Transform3D(1.8750286, 0, 0, 0, 0, -2.2868595, 0, 1, 0, 0.47896084, 0.2288377, 0.022002403)
 mesh = SubResource("ArrayMesh_64o0m")
 
 [node name="PilotCollar_0" type="MeshInstance3D" parent="PDP" unique_id=1030037753]
-transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0.4382231, 0.22840145, 0.019104674)
+transform = Transform3D(1.8750286, 0, 0, 0, 0, -2.2868595, 0, 1, 0, 0.47896084, 0.2288377, 0.019104674)
 mesh = SubResource("ArrayMesh_goyfm")
 
 [node name="PilotLens_0" type="MeshInstance3D" parent="PDP" unique_id=1523679896]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4382231, 0.22840145, 0.020104676)
+transform = Transform3D(1.8750286, 0, 0, 0, 2.2868595, 0, 0, 0, 1, 0.47896084, 0.2288377, 0.020104676)
 mesh = SubResource("ArrayMesh_airsp")
 surface_material_override/0 = SubResource("StandardMaterial3D_fure5")
 

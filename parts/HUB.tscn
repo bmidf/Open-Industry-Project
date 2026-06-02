@@ -1,22 +1,36 @@
-[gd_scene load_steps=3 format=3 uid="uid://v2naw0up7gt8"]
+[gd_scene format=3 uid="uid://v2naw0up7gt8"]
 
 [ext_resource type="PackedScene" uid="uid://bq2yxwje7gtoo" path="res://assets/3DModels/HUB/HUB.glb" id="1_w0rpk"]
-[ext_resource type="Script" path="res://src/Hub/hub.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://b3r26pvr3g1ao" path="res://src/Hub/hub.gd" id="2_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7teij"]
+resource_local_to_scene = true
+resource_name = "LED_Green"
+cull_mode = 2
+albedo_color = Color(0, 1, 0, 1)
+roughness = 0.15
+emission_enabled = true
+emission = Color(0, 1, 0, 1)
+emission_energy_multiplier = 2.0
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_hub_collision"]
-size = Vector3(2.0, 2.0, 1.5)
+size = Vector3(1.4853516, 0.15594482, 0.53430176)
 
 [node name="Hub" type="Node3D" unique_id=107316681]
-transform = Transform3D(0.2, 0, 0, 0, 0.2, 0, 0, 0, 0.2, 0, 0, 0)
+transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 0, 0)
 script = ExtResource("2_script")
 tag_group_name = "TagGroup0"
 
 [node name="HUB" parent="." unique_id=248588825 instance=ExtResource("1_w0rpk")]
 
+[node name="HUB_LED_Dome" parent="HUB" index="93" unique_id=379884695]
+surface_material_override/0 = SubResource("StandardMaterial3D_7teij")
+
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=179917426]
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=428500345]
+transform = Transform3D(0.99999976, 0, 0, 0, 0.99999976, 0, 0, 0, 0.99999976, -0.0034180032, 0.087188676, -0.004821767)
 shape = SubResource("BoxShape3D_hub_collision")
 
 [editable path="HUB"]

@@ -41,6 +41,14 @@ const PMM_LENS_EMISSION_ENERGY: float = 1.0
 const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 
 
+## Panel name shown on the `Name` label.
+@export var name_text: String = "PDP":
+	set(value):
+		name_text = value
+		if _name_label:
+			_name_label.text = name_text
+
+
 @export_category("Power Monitor")
 
 ## When true, the displayed power values are regenerated on the interval
@@ -154,6 +162,7 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 
 
 var _model: Node3D
+var _name_label: Label3D
 var _total_power_label: Label3D
 var _kwh_label: Label3D
 var _max_power_label: Label3D
@@ -462,6 +471,9 @@ func _animate_toggle(index: int) -> void:
 func _collect_power_labels() -> void:
 	if not _model:
 		return
+	_name_label = _model.get_node_or_null("Name") as Label3D
+	if _name_label:
+		_name_label.text = name_text
 	_total_power_label = _model.get_node_or_null("TotalPowerNum") as Label3D
 	_kwh_label = _model.get_node_or_null("KWHConsumedNum") as Label3D
 	_max_power_label = _model.get_node_or_null("MaxPowerNum") as Label3D
