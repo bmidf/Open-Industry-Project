@@ -102,8 +102,9 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 ## on-demand button, or pilot interaction.
 @export var pmm_faulted: bool = false:
 	set(value):
+		# Normally closed: tag is HIGH when healthy, LOW when faulted.
 		if _pmm_fault_tag.is_ready() and value != pmm_faulted:
-			_pmm_fault_tag.write_bit(value)
+			_pmm_fault_tag.write_bit(not value)
 		pmm_faulted = value
 		_update_pmm_lens()
 
@@ -157,7 +158,7 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 ## MaxPower tag.[br]Datatype: [code]REAL[/code]
 @export var max_power_tag_name: String = ""
 ## PMM communication-fault tag.[br]Datatype: [code]BOOL[/code][br]
-## HIGH while the PMM is faulted, LOW while healthy.
+## Normally closed: HIGH while the PMM is healthy, LOW while faulted.
 @export var pmm_fault_tag_name: String = ""
 
 
@@ -267,7 +268,7 @@ func _property_can_revert(property: StringName) -> bool:
 
 func _property_get_revert(property: StringName) -> Variant:
 	if _breaker_index_from_property(property) >= 0:
-		return false
+		return true
 	if _breaker_tag_index_from_property(property) >= 0:
 		return ""
 	return null
@@ -390,7 +391,11 @@ func use() -> void:
 
 func _ensure_state() -> void:
 	if _tripped.size() != BREAKER_COUNT:
+		# Breakers default to tripped (true / On); fill any newly added slots.
+		var old_size: int = _tripped.size()
 		_tripped.resize(BREAKER_COUNT)
+		for i in range(old_size, BREAKER_COUNT):
+			_tripped[i] = true
 	if _toggle_meshes.size() != BREAKER_COUNT:
 		_toggle_meshes.resize(BREAKER_COUNT)
 	if _handles.size() != BREAKER_COUNT:
@@ -645,7 +650,7 @@ func _tag_group_initialized(group: String) -> void:
 	if _max_power_tag.on_group_initialized(group):
 		_max_power_tag.write_float32(max_power)
 	if _pmm_fault_tag.on_group_initialized(group):
-		_pmm_fault_tag.write_bit(pmm_faulted)
+		_pmm_fault_tag.write_bit(not pmm_faulted)
 
 
 # Tag-name suffix templates for `tag_prefix` auto-fill. Device→PLC status uses
@@ -664,4 +669,4 @@ func _apply_tag_prefix(prefix: String) -> void:
 		var suffix: String = _PMM_TAG_TEMPLATES[property]
 		set(property, prefix + suffix if prefix != "" else "")
 	for i in BREAKER_COUNT:
-		_cb_tag_names[i] = "%s:I.CB%d" % [prefix, i + 1] if prefix != "" else ""
+		_cb_tag_names[i] = "%s_CB%d_OIP" % [prefix, i + 1] if prefix != "" else ""
