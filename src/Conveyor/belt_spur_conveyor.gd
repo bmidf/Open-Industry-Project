@@ -7,12 +7,22 @@ extends ResizableNode3D
 
 const _MIN_SLOT_LENGTH: float = 0.05
 
-## Spur length along the flow axis in meters.
+## Length of the LEFT (-Z) side along the flow axis, in meters. Together with
+## [member length_right] this sizes each long edge independently: the downstream
+## (head) end is the straight cut between the two corners, and its splay angle is
+## derived. Stored as [code]size.x[/code] (centerline) plus [member angle_downstream].
 @export_custom(PROPERTY_HINT_NONE, "suffix:m") var length: float = 2.0:
 	set(value):
-		size = Vector3(value, size.y, size.z)
+		_set_side_lengths(value, length_right)
 	get:
-		return size.x
+		return size.x - tan(angle_downstream) * (size.z * 0.5)
+
+## Length of the RIGHT (+Z) side along the flow axis, in meters. See [member length].
+@export_custom(PROPERTY_HINT_NONE, "suffix:m") var length_right: float = 2.0:
+	set(value):
+		_set_side_lengths(length, value)
+	get:
+		return size.x + tan(angle_downstream) * (size.z * 0.5)
 
 ## Spur width across the flow axis in meters.
 @export_range(0.1, 5.0, 0.01, "or_greater", "suffix:m") var width: float = 1.524:
@@ -253,9 +263,10 @@ var _running_tag := OIPCommsTag.new()
 
 
 func _validate_property(property: Dictionary) -> void:
-	# `length`/`width`/`height` are inspector facades; only `size` is serialized.
+	# `length`/`length_right`/`width`/`height` are inspector facades; only
+	# `size` (+ `angle_downstream`) is serialized.
 	var prop_name: String = property["name"]
-	if prop_name in ["length", "width", "height"]:
+	if prop_name in ["length", "length_right", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
 	if prop_name == "size":
@@ -276,6 +287,17 @@ func _init() -> void:
 
 func _on_size_changed() -> void:
 	_request_rebuild()
+
+
+## Map the two requested side lengths to the stored centerline length
+## ([code]size.x[/code]) and the derived downstream splay
+## ([member angle_downstream]). The head end is the straight cut between the
+## left corner ([param left] at -Z) and the right corner ([param right] at +Z).
+func _set_side_lengths(left: float, right: float) -> void:
+	var w: float = maxf(size.z, 0.0001)
+	var center: float = (left + right) * 0.5
+	angle_downstream = atan((right - left) / w)
+	size = Vector3(center, size.y, size.z)
 
 
 func _get_resize_local_bounds(for_size: Vector3) -> AABB:
@@ -488,19 +510,19 @@ func _get_slot_geometry(index: int) -> Array[Vector3]:
 	var ds_displacement_x: float = tan(angle_downstream) * (conv_pos_z + ds_contact_z_offset)
 	var us_displacement_x: float = tan(angle_upstream) * (conv_pos_z + us_contact_z_offset)
 	# Origin at tail: slot spans [0 + us_disp, length + ds_disp]; center is the midpoint.
-	var conv_pos_x: float = length * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
-	var conv_length: float = length + ds_displacement_x - us_displacement_x
+	var conv_pos_x: float = size.x * 0.5 + (ds_displacement_x + us_displacement_x) / 2.0
+	var conv_length: float = size.x + ds_displacement_x - us_displacement_x
 	return [Vector3(conv_pos_x, 0.0, conv_pos_z),
 			Vector3(conv_length, height, conv_width)]
 
 
 ## True arc extent of the side guard (origin at tail), default span for a new opening.
 func _guard_arc_bounds() -> Vector2:
-	return Vector2(0.0, length)
+	return Vector2(0.0, size.x)
 
 
 func _side_extents(side_z: float) -> Vector2:
-	var front_x: float = length + tan(angle_downstream) * side_z
+	var front_x: float = size.x + tan(angle_downstream) * side_z
 	var back_x: float = tan(angle_upstream) * side_z
 	var side_key: String = "left" if side_z < 0.0 else "right"
 	var front_key: String = side_key + "_front"
@@ -735,7 +757,7 @@ func _rebuild_legs() -> void:
 	if not legs_enabled or leg_model_scene == null:
 		_remove_orphan_legs(keep)
 		return
-	var specs: Array = _compute_leg_specs(length)
+	var specs: Array = _compute_leg_specs(size.x)
 	if specs.is_empty():
 		_remove_orphan_legs(keep)
 		return
@@ -796,7 +818,7 @@ func _reposition_existing_legs() -> void:
 	if legs_normal_world.length_squared() < 1.0e-6:
 		return
 	legs_normal_world = legs_normal_world.normalized()
-	for spec: Dictionary in _compute_leg_specs(length):
+	for spec: Dictionary in _compute_leg_specs(size.x):
 		var leg: Node3D = get_node_or_null(NodePath(spec["name"])) as Node3D
 		if leg == null:
 			continue
@@ -861,10 +883,10 @@ func _update_flow_arrow() -> void:
 		FlowDirectionArrow.unregister(_flow_arrow)
 		_flow_arrow.queue_free()
 		_flow_arrow = null
-	if length <= 0.0:
+	if size.x <= 0.0:
 		return
-	_flow_arrow = FlowDirectionArrow.create(Vector3(length, 0.0, width))
-	_flow_arrow.position = Vector3(length * 0.5, 0.2, 0.0)
+	_flow_arrow = FlowDirectionArrow.create(Vector3(size.x, 0.0, width))
+	_flow_arrow.position = Vector3(size.x * 0.5, 0.2, 0.0)
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
 	if has_meta("is_preview"):
