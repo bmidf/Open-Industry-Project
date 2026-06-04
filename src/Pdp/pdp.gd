@@ -17,9 +17,10 @@ extends Node3D
 ## the inspector.
 ##
 ## Comms (mirrors `APF`): every breaker publishes a BOOL "tripped" tag, the
-## three PMM values publish REAL tags, and the PMM publishes a BOOL comm-fault
-## tag. All are device→PLC writes sharing one tag group; `tag_prefix` auto-fills
-## every tag name.
+## three PMM values publish REAL tags, the PMM publishes a BOOL comm-fault
+## tag, and the panel publishes a BOOL connection-fault tag. All are
+## device→PLC writes sharing one tag group; `tag_prefix` auto-fills every
+## tag name.
 
 ## Breaker count must match the GLB: CB_<col>_<row>_tog for col in {0,1},
 ## row in {0..12}.
@@ -102,8 +103,9 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 ## on-demand button, or pilot interaction.
 @export var pmm_faulted: bool = false:
 	set(value):
+		# Normally closed: tag is HIGH when healthy, LOW when faulted.
 		if _pmm_fault_tag.is_ready() and value != pmm_faulted:
-			_pmm_fault_tag.write_bit(value)
+			_pmm_fault_tag.write_bit(not value)
 		pmm_faulted = value
 		_update_pmm_lens()
 
@@ -130,6 +132,17 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 			call_deferred("_handle_pmm_fault_on_demand")
 
 
+@export_category("Connection Fault")
+
+## Live panel connection-fault state. true when comms to the panel are
+## faulted. Published as a BOOL tag. Mirrors `Apf.connection_faulted`.
+@export var connection_faulted: bool = false:
+	set(value):
+		if _connection_faulted_tag.is_ready() and value != connection_faulted:
+			_connection_faulted_tag.write_bit(value)
+		connection_faulted = value
+
+
 @export_category("Communications")
 
 ## Enable communication with external PLC/control systems.
@@ -142,8 +155,9 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 		tag_groups = value
 
 ## Device prefix used to auto-fill every tag-name field (e.g. `PDP1` →
-## `PDP1:I.CB1`, …, `PDP1:I.TotalPower`, `PDP1:I.PMMCommFault`). Setting this
-## overwrites every tag-name field; clearing it blanks them.
+## `PDP1:I.CB1`, …, `PDP1_PMM1:I2.TotalRealPower`,
+## `PDP1_PMM1:I1.ConnectionFaulted`). Setting this overwrites every tag-name
+## field; clearing it blanks them.
 @export var tag_prefix: String = "":
 	set(value):
 		tag_prefix = value
@@ -157,8 +171,11 @@ const PMM_COLLISION_SIZE: Vector3 = Vector3(0.1, 0.07, 0.05)
 ## MaxPower tag.[br]Datatype: [code]REAL[/code]
 @export var max_power_tag_name: String = ""
 ## PMM communication-fault tag.[br]Datatype: [code]BOOL[/code][br]
-## HIGH while the PMM is faulted, LOW while healthy.
+## Normally closed: HIGH while the PMM is healthy, LOW while faulted.
 @export var pmm_fault_tag_name: String = ""
+## Panel connection-fault tag.[br]Datatype: [code]BOOL[/code][br]
+## HIGH while the panel connection is faulted.
+@export var connection_faulted_tag_name: String = ""
 
 
 var _model: Node3D
@@ -189,6 +206,7 @@ var _total_power_tag := OIPCommsTag.new()
 var _kwh_consumed_tag := OIPCommsTag.new()
 var _max_power_tag := OIPCommsTag.new()
 var _pmm_fault_tag := OIPCommsTag.new()
+var _connection_faulted_tag := OIPCommsTag.new()
 
 
 # --- Dynamic per-breaker bool properties ---
@@ -267,7 +285,7 @@ func _property_can_revert(property: StringName) -> bool:
 
 func _property_get_revert(property: StringName) -> Variant:
 	if _breaker_index_from_property(property) >= 0:
-		return false
+		return true
 	if _breaker_tag_index_from_property(property) >= 0:
 		return ""
 	return null
@@ -299,6 +317,7 @@ func _validate_property(property: Dictionary) -> void:
 	var tag_fields: PackedStringArray = [
 		"total_power_tag_name", "kwh_consumed_tag_name",
 		"max_power_tag_name", "pmm_fault_tag_name",
+		"connection_faulted_tag_name",
 	]
 	for field: String in tag_fields:
 		if OIPCommsSetup.validate_tag_property(property, "tag_group_name",
@@ -390,7 +409,11 @@ func use() -> void:
 
 func _ensure_state() -> void:
 	if _tripped.size() != BREAKER_COUNT:
+		# Breakers default to tripped (true / On); fill any newly added slots.
+		var old_size: int = _tripped.size()
 		_tripped.resize(BREAKER_COUNT)
+		for i in range(old_size, BREAKER_COUNT):
+			_tripped[i] = true
 	if _toggle_meshes.size() != BREAKER_COUNT:
 		_toggle_meshes.resize(BREAKER_COUNT)
 	if _handles.size() != BREAKER_COUNT:
@@ -625,6 +648,7 @@ func _on_simulation_started() -> void:
 	_kwh_consumed_tag.register(tag_group_name, kwh_consumed_tag_name)
 	_max_power_tag.register(tag_group_name, max_power_tag_name)
 	_pmm_fault_tag.register(tag_group_name, pmm_fault_tag_name)
+	_connection_faulted_tag.register(tag_group_name, connection_faulted_tag_name)
 
 
 func _on_simulation_stopped() -> void:
@@ -645,16 +669,19 @@ func _tag_group_initialized(group: String) -> void:
 	if _max_power_tag.on_group_initialized(group):
 		_max_power_tag.write_float32(max_power)
 	if _pmm_fault_tag.on_group_initialized(group):
-		_pmm_fault_tag.write_bit(pmm_faulted)
+		_pmm_fault_tag.write_bit(not pmm_faulted)
+	if _connection_faulted_tag.on_group_initialized(group):
+		_connection_faulted_tag.write_bit(connection_faulted)
 
 
 # Tag-name suffix templates for `tag_prefix` auto-fill. Device→PLC status uses
 # Rockwell `:I.*` semantics, matching APF.
 const _PMM_TAG_TEMPLATES: Dictionary = {
-	"total_power_tag_name": ":I.TotalPower",
-	"kwh_consumed_tag_name": ":I.KWHConsumed",
-	"max_power_tag_name": ":I.MaxPower",
+	"total_power_tag_name": "_PMM1:I2.TotalRealPower",
+	"kwh_consumed_tag_name": "_PMM1:I3.kWhConsumed",
+	"max_power_tag_name": "_PMM1:I4.MaxTotalRealPwr",
 	"pmm_fault_tag_name": ":I.PMMCommFault",
+	"connection_faulted_tag_name": "_PMM1:I1.ConnectionFaulted",
 }
 
 
@@ -664,4 +691,4 @@ func _apply_tag_prefix(prefix: String) -> void:
 		var suffix: String = _PMM_TAG_TEMPLATES[property]
 		set(property, prefix + suffix if prefix != "" else "")
 	for i in BREAKER_COUNT:
-		_cb_tag_names[i] = "%s:I.CB%d" % [prefix, i + 1] if prefix != "" else ""
+		_cb_tag_names[i] = "%s_CB%d_OIP" % [prefix, i + 1] if prefix != "" else ""
