@@ -273,7 +273,7 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 
 var _flow_arrow: Node3D
 var _legs_state: Dictionary = {}
-var _belt_material: Material
+var _belt_material: ShaderMaterial
 var _metal_material: Material
 var _frame_mesh_instance: MeshInstance3D
 var _belt_position: float = 0.0
@@ -356,11 +356,12 @@ func _sync_preview_overlay_arrow(reversed: bool) -> void:
 
 func _disable_collisions_recursive(node: Node) -> void:
 	if node is CollisionShape3D:
-		node.disabled = true
+		(node as CollisionShape3D).disabled = true
 
 	if node is CollisionObject3D:
-		node.collision_layer = 0
-		node.collision_mask = 0
+		var body := node as CollisionObject3D
+		body.collision_layer = 0
+		body.collision_mask = 0
 
 	# `true` includes INTERNAL_MODE_FRONT children (auto-managed legs etc.).
 	for child in node.get_children(true):
@@ -947,7 +948,8 @@ func _setup_collision_shape() -> void:
 	for surface_idx in range(mesh_instance.get_surface_count()):
 		var surface := mesh_instance.surface_get_arrays(surface_idx)
 		var base_index := all_verts.size()
-		all_verts.append_array(surface[Mesh.ARRAY_VERTEX])
+		var surface_verts: PackedVector3Array = surface[Mesh.ARRAY_VERTEX]
+		all_verts.append_array(surface_verts)
 
 		for i: int in surface[Mesh.ARRAY_INDEX]:
 			all_indices.append(base_index + i)
@@ -979,9 +981,9 @@ func _enter_tree() -> void:
 	super._enter_tree()
 	speed_tag_group_name = OIPCommsSetup.default_tag_group(speed_tag_group_name)
 	running_tag_group_name = OIPCommsSetup.default_tag_group(running_tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
-	EditorInterface.simulation_stopped.connect(_on_simulation_ended)
-	EditorInterface.simulation_pause_toggled.connect(_on_simulation_set_paused)
+	Simulation.started.connect(_on_simulation_started)
+	Simulation.stopped.connect(_on_simulation_ended)
+	Simulation.pause_toggled.connect(_on_simulation_set_paused)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized, _tag_group_polled)
 	ConveyorSnapping.notify_contacts_rebuild(self)
 
@@ -990,9 +992,9 @@ func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
-	EditorInterface.simulation_stopped.disconnect(_on_simulation_ended)
-	EditorInterface.simulation_pause_toggled.disconnect(_on_simulation_set_paused)
+	Simulation.started.disconnect(_on_simulation_started)
+	Simulation.stopped.disconnect(_on_simulation_ended)
+	Simulation.pause_toggled.disconnect(_on_simulation_set_paused)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized, _tag_group_polled)
 	super._exit_tree()
 
@@ -1023,7 +1025,7 @@ func _physics_process(delta: float) -> void:
 	if ConveyorLeg.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
 		_legs_state = ConveyorLeg.capture_leg_state(self)
-	if not EditorInterface.is_simulation_running():
+	if not Simulation.is_running():
 		return
 	# Only re-push the angular velocity when it actually changes — same
 	# rationale as BeltConveyor's linear case.
@@ -1040,7 +1042,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				body.constant_angular_velocity = Vector3.ZERO
 		_last_pushed_angular_speed = _angular_speed
-	if not EditorInterface.is_simulation_paused():
+	if not Simulation.is_paused():
 		_belt_position = fmod(_belt_position + _linear_speed * delta, 1.0)
 	if _linear_speed != 0:
 		(_belt_material as ShaderMaterial).set_shader_parameter("BeltPosition", _belt_position)

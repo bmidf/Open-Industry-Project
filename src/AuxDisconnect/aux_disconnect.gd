@@ -64,12 +64,12 @@ func _validate_property(property: Dictionary) -> void:
 
 func _enter_tree() -> void:
 	tag_group_name = OIPCommsSetup.default_tag_group(tag_group_name)
-	EditorInterface.simulation_started.connect(_on_simulation_started)
+	Simulation.started.connect(_on_simulation_started)
 	OIPCommsSetup.connect_comms(self, _tag_group_initialized)
 
 
 func _exit_tree() -> void:
-	EditorInterface.simulation_started.disconnect(_on_simulation_started)
+	Simulation.started.disconnect(_on_simulation_started)
 	OIPCommsSetup.disconnect_comms(self, _tag_group_initialized)
 
 
