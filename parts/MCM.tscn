@@ -378,9 +378,10 @@ script = ExtResource("2_mcm_script")
 tag_group_name = "TagGroup0"
 
 [node name="MCM" parent="." unique_id=624119483 instance=ExtResource("1_rly3b")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 
 [node name="Door_Pivot" parent="MCM" index="8" unique_id=1295116006]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0009999871, 0, -0.0029999912)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.001, 0, -0.003)
 
 [node name="CFR_Nut" parent="MCM/Door_Pivot" index="7" unique_id=1220312299]
 mesh = SubResource("ArrayMesh_n7icw")
@@ -441,14 +442,15 @@ outline_modulate = Color(1, 1, 1, 1)
 text = " ON"
 
 [node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=712893415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7170639, 0)
 collision_layer = 3
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=2061478392]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.1)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, -0.1)
 shape = SubResource("BoxShape3D_mcm_door")
 
 [node name="InteractionPrompt" type="Label3D" parent="." unique_id=1497823654]
-transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, 0, 1, 0.59999996)
+transform = Transform3D(5, 0, 0, 0, 5, 0, 0, 0, 5, -0.09737396, 2.2338943, 0.59999996)
 top_level = true
 visible = false
 pixel_size = 0.0008
