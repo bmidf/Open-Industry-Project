@@ -264,6 +264,16 @@ func _segments_total_length() -> float:
 			_belt_material.set_shader_parameter("Scale", maxf(1.0, _path.loop_length))
 		if _running_tag.is_ready():
 			_running_tag.write_bit(value != 0.0)
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
+## Show a floating label at the conveyor's center displaying the current speed.
+@export var show_speed_label: bool = false:
+	set(value):
+		if value == show_speed_label:
+			return
+		show_speed_label = value
+		_update_speed_label()
 
 @export var belt_color: Color = Color.WHITE:
 	set(value):
@@ -439,6 +449,7 @@ var _side_guards: Array[SideGuard] = []
 var _bend_side_guard_meshes: Array[MeshInstance3D] = []
 var _derived_side_guard_openings: Array[SideGuardOpening] = []
 var _flow_arrow: Node3D
+var _speed_label: Label3D = null
 var _belt_material: ShaderMaterial
 var _belt_position: float = 0.0
 var _rebuild_pending: bool = false
@@ -692,6 +703,9 @@ func _ensure_unique_segments() -> void:
 func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	_disconnect_segment_signals()
+	if _speed_label and is_instance_valid(_speed_label):
+		_speed_label.queue_free()
+	_speed_label = null
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Simulation.started.is_connected(_on_simulation_started):
@@ -784,6 +798,7 @@ func _rebuild() -> void:
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_update_flow_arrow()
+	_update_speed_label()
 	size = local_bbox.size
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if Engine.is_editor_hint():
@@ -1262,6 +1277,31 @@ static func _basis_with_y_along(dir: Vector3) -> Basis:
 	var right: Vector3 = dir.cross(ref_up).normalized()
 	var up: Vector3 = right.cross(dir).normalized()
 	return Basis(right, dir, up)
+
+
+func _speed_label_text() -> String:
+	return "%.2f m/s" % speed
+
+
+func _update_speed_label() -> void:
+	if not show_speed_label or not is_inside_tree():
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.queue_free()
+		_speed_label = null
+		return
+	if not (_speed_label and is_instance_valid(_speed_label)):
+		var label := Label3D.new()
+		label.name = "SpeedLabel"
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.no_depth_test = true
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.font_size = 256
+		add_child(label, false, Node.INTERNAL_MODE_FRONT)
+		_speed_label = label
+	var bbox: AABB = local_bbox
+	_speed_label.position = bbox.position + bbox.size * 0.5
+	_speed_label.text = _speed_label_text()
 
 
 func _rebuild_legs() -> void:
