@@ -84,6 +84,14 @@ const _LEG_MIDDLE_PREFIX := "Leg_Middle_"
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
 
+## Rotate the speed label 180 degrees around Y so it reads from the other side.
+@export var flip_speed_label: bool = false:
+	set(value):
+		if value == flip_speed_label:
+			return
+		flip_speed_label = value
+		_update_speed_label()
+
 ## Interpret incoming speed values (inspector and comms tag) as feet per minute.
 @export var speed_in_fpm: bool = false:
 	set(value):
@@ -1009,11 +1017,11 @@ func _update_speed_label() -> void:
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		label.font_size = 128
-		label.rotation_degrees = Vector3(-90, 0, 0)
 		add_child(label, false, Node.INTERNAL_MODE_FRONT)
 		_speed_label = label
 	var bbox: AABB = local_bbox
 	_speed_label.position = bbox.position + bbox.size * 0.5
+	_speed_label.rotation_degrees = Vector3(-90, 180.0 if flip_speed_label else 0.0, 0)
 	_speed_label.text = _speed_label_text()
 
 
