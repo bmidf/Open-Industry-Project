@@ -59,6 +59,40 @@ signal roller_override_material_changed(material: Material)
 
 		if _running_tag.is_ready():
 			_running_tag.write_bit(value != 0.0)
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
+## Show a floating label at the conveyor's center displaying the current speed.
+@export var show_speed_label: bool = false:
+	set(value):
+		if value == show_speed_label:
+			return
+		show_speed_label = value
+		_update_speed_label()
+
+## Display the speed label in feet per minute instead of m/s.
+@export var speed_label_fpm: bool = true:
+	set(value):
+		if value == speed_label_fpm:
+			return
+		speed_label_fpm = value
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
+## Interpret incoming speed values (inspector and comms tag) as feet per minute.
+@export var speed_in_fpm: bool = false:
+	set(value):
+		if value == speed_in_fpm:
+			return
+		speed_in_fpm = value
+		notify_property_list_changed()
+
+## Speed in feet per minute. Replaces [member speed] in the inspector when [member speed_in_fpm] is on.
+@export_custom(PROPERTY_HINT_NONE, "suffix:fpm") var speed_fpm: float:
+	get:
+		return speed * _MS_TO_FPM
+	set(value):
+		speed = value / _MS_TO_FPM
 
 ## Physics material applied to the conveyor body.
 @export var physics_material: PhysicsMaterial = preload("res://parts/RollerSurfaceMaterial.tres"):
@@ -205,6 +239,7 @@ var _speed_tag := OIPCommsTag.new()
 var _running_tag := OIPCommsTag.new()
 
 var _flow_arrow: Node3D
+var _speed_label: Label3D = null
 var _last_size: Vector3 = Vector3(1.525, 0.5, 1.524)
 var _last_length: float = 1.525
 var _last_width: float = 1.524
@@ -281,6 +316,12 @@ func _enter_tree() -> void:
 
 func _validate_property(property: Dictionary) -> void:
 	var prop_name: String = property["name"]
+	if prop_name == "speed":
+		property["usage"] = PROPERTY_USAGE_NO_EDITOR if speed_in_fpm else PROPERTY_USAGE_DEFAULT
+		return
+	if prop_name == "speed_fpm":
+		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
+		return
 	if prop_name in ["length", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
@@ -304,6 +345,9 @@ var local_bbox: AABB:
 
 func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
+	if _speed_label and is_instance_valid(_speed_label):
+		_speed_label.queue_free()
+	_speed_label = null
 	if _flow_arrow:
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Simulation.started.is_connected(_on_simulation_started):
@@ -330,6 +374,7 @@ func _ready() -> void:
 	_last_size = Vector3.ZERO
 	_on_size_changed()
 	_update_flow_arrow()
+	_update_speed_label()
 	SideGuardOpening.claim_unique(side_guard_openings, get_instance_id())
 	SideGuardOpening.sync_change_listeners([], side_guard_openings, _request_side_guard_rebuild)
 	_rebuild_side_guards()
@@ -420,6 +465,35 @@ func _update_flow_arrow() -> void:
 	_flow_arrow.position.x = size.x / 2.0
 	add_child(_flow_arrow, false, Node.INTERNAL_MODE_FRONT)
 	FlowDirectionArrow.register(_flow_arrow)
+
+
+const _MS_TO_FPM: float = 196.850394
+
+
+func _speed_label_text() -> String:
+	if speed_label_fpm:
+		return "%.0f" % (speed * _MS_TO_FPM)
+	return "%.2f" % speed
+
+
+func _update_speed_label() -> void:
+	if not show_speed_label or not is_inside_tree():
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.queue_free()
+		_speed_label = null
+		return
+	if not (_speed_label and is_instance_valid(_speed_label)):
+		var label := Label3D.new()
+		label.name = "SpeedLabel"
+		label.no_depth_test = true
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.font_size = 128
+		add_child(label, false, Node.INTERNAL_MODE_FRONT)
+		_speed_label = label
+	var bbox: AABB = local_bbox
+	_speed_label.position = bbox.position + bbox.size * 0.5
+	_speed_label.text = _speed_label_text()
 
 
 func _physics_process(_delta: float) -> void:
@@ -616,6 +690,7 @@ func _on_size_changed() -> void:
 			_simple_conveyor_shape.position = Vector3(size.x / 2.0, -size.y / 2.0, 0)
 
 		_update_flow_arrow()
+		_update_speed_label()
 		_rebuild_side_guards()
 		_rebuild_legs()
 		ConveyorSnapping.notify_contacts_rebuild(self)
@@ -670,7 +745,8 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 		return
 
 	if _speed_tag.matches_group(tag_group_name_param):
-		speed = _speed_tag.read_float32()
+		var tag_speed: float = _speed_tag.read_float32()
+		speed = tag_speed / _MS_TO_FPM if speed_in_fpm else tag_speed
 
 
 func _setup_transfer_plates() -> void:

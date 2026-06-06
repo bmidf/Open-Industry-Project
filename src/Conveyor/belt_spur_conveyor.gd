@@ -73,6 +73,40 @@ const _GAP_FILL_DEPTH: float = 0.05
 			_belt_material.set_shader_parameter("Scale", maxf(1.0, _approximate_loop_length()))
 		if _running_tag.is_ready():
 			_running_tag.write_bit(value != 0.0)
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
+## Show a floating label at the conveyor's center displaying the current speed.
+@export var show_speed_label: bool = false:
+	set(value):
+		if value == show_speed_label:
+			return
+		show_speed_label = value
+		_update_speed_label()
+
+## Display the speed label in feet per minute instead of m/s.
+@export var speed_label_fpm: bool = true:
+	set(value):
+		if value == speed_label_fpm:
+			return
+		speed_label_fpm = value
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
+## Interpret incoming speed values (inspector and comms tag) as feet per minute.
+@export var speed_in_fpm: bool = false:
+	set(value):
+		if value == speed_in_fpm:
+			return
+		speed_in_fpm = value
+		notify_property_list_changed()
+
+## Speed in feet per minute. Replaces [member speed] in the inspector when [member speed_in_fpm] is on.
+@export_custom(PROPERTY_HINT_NONE, "suffix:fpm") var speed_fpm: float:
+	get:
+		return speed * _MS_TO_FPM
+	set(value):
+		speed = value / _MS_TO_FPM
 
 @export var belt_color: Color = Color.WHITE:
 	set(value):
@@ -261,6 +295,7 @@ var _legs: Array[Node3D] = []
 var _legs_state: Dictionary = {}
 var _derived_side_guard_snap_extents: Dictionary = {}
 var _flow_arrow: Node3D
+var _speed_label: Label3D = null
 var _belt_material: ShaderMaterial
 var _frame_material: ShaderMaterial
 var _belt_position: float = 0.0
@@ -275,6 +310,12 @@ func _validate_property(property: Dictionary) -> void:
 	# `length`/`length_right`/`width`/`height` are inspector facades; only
 	# `size` (+ `angle_downstream`) is serialized.
 	var prop_name: String = property["name"]
+	if prop_name == "speed":
+		property["usage"] = PROPERTY_USAGE_NO_EDITOR if speed_in_fpm else PROPERTY_USAGE_DEFAULT
+		return
+	if prop_name == "speed_fpm":
+		property["usage"] = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
+		return
 	if prop_name in ["length", "length_right", "width", "height"]:
 		property["usage"] = PROPERTY_USAGE_EDITOR
 		return
@@ -353,6 +394,9 @@ func _enter_tree() -> void:
 
 func _exit_tree() -> void:
 	ConveyorSnapping.notify_contacts_rebuild(self)
+	if _speed_label and is_instance_valid(_speed_label):
+		_speed_label.queue_free()
+	_speed_label = null
 	if is_instance_valid(_flow_arrow):
 		FlowDirectionArrow.unregister(_flow_arrow)
 	if Simulation.started.is_connected(_on_simulation_started):
@@ -502,6 +546,7 @@ func _rebuild() -> void:
 	_rebuild_side_guards()
 	_rebuild_legs()
 	_update_flow_arrow()
+	_update_speed_label()
 	ConveyorSnapping.notify_contacts_rebuild(self)
 	if Engine.is_editor_hint():
 		update_gizmos()
@@ -1015,6 +1060,35 @@ func _update_flow_arrow() -> void:
 		_flow_arrow.visible = true
 
 
+const _MS_TO_FPM: float = 196.850394
+
+
+func _speed_label_text() -> String:
+	if speed_label_fpm:
+		return "%.0f" % (speed * _MS_TO_FPM)
+	return "%.2f" % speed
+
+
+func _update_speed_label() -> void:
+	if not show_speed_label or not is_inside_tree():
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.queue_free()
+		_speed_label = null
+		return
+	if not (_speed_label and is_instance_valid(_speed_label)):
+		var label := Label3D.new()
+		label.name = "SpeedLabel"
+		label.no_depth_test = true
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.font_size = 128
+		add_child(label, false, Node.INTERNAL_MODE_FRONT)
+		_speed_label = label
+	var bbox: AABB = local_bbox
+	_speed_label.position = bbox.position + bbox.size * 0.5
+	_speed_label.text = _speed_label_text()
+
+
 func _physics_process(delta: float) -> void:
 	if ConveyorLeg.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
@@ -1061,7 +1135,8 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 	if _speed_tag.matches_group(tag_group_name_param):
-		speed = _speed_tag.read_float32()
+		var tag_speed: float = _speed_tag.read_float32()
+		speed = tag_speed / _MS_TO_FPM if speed_in_fpm else tag_speed
 
 
 func _remove_orphans_with_prefix(prefixes: Array, keep: PackedStringArray) -> void:

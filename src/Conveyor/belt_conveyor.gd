@@ -284,6 +284,21 @@ func _segments_total_length() -> float:
 		if _speed_label and is_instance_valid(_speed_label):
 			_speed_label.text = _speed_label_text()
 
+## Interpret incoming speed values (inspector and comms tag) as feet per minute.
+@export var speed_in_fpm: bool = false:
+	set(value):
+		if value == speed_in_fpm:
+			return
+		speed_in_fpm = value
+		notify_property_list_changed()
+
+## Speed in feet per minute. Replaces [member speed] in the inspector when [member speed_in_fpm] is on.
+@export_custom(PROPERTY_HINT_NONE, "suffix:fpm") var speed_fpm: float:
+	get:
+		return speed * _MS_TO_FPM
+	set(value):
+		speed = value / _MS_TO_FPM
+
 @export var belt_color: Color = Color.WHITE:
 	set(value):
 		belt_color = value
@@ -469,6 +484,12 @@ var _running_tag := OIPCommsTag.new()
 
 
 func _validate_property(property: Dictionary) -> void:
+	if property.name == "speed":
+		property.usage = PROPERTY_USAGE_NO_EDITOR if speed_in_fpm else PROPERTY_USAGE_DEFAULT
+		return
+	if property.name == "speed_fpm":
+		property.usage = PROPERTY_USAGE_EDITOR if speed_in_fpm else PROPERTY_USAGE_NONE
+		return
 	if OIPCommsSetup.validate_tag_property(property, "speed_tag_group_name", "speed_tag_groups", "speed_tag_name"):
 		return
 	if OIPCommsSetup.validate_tag_property(property, "running_tag_group_name", "running_tag_groups", "running_tag_name"):
@@ -763,7 +784,8 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 	if _speed_tag.matches_group(tag_group_name_param):
-		speed = _speed_tag.read_float32()
+		var tag_speed: float = _speed_tag.read_float32()
+		speed = tag_speed / _MS_TO_FPM if speed_in_fpm else tag_speed
 
 
 func _request_rebuild() -> void:
@@ -1306,7 +1328,6 @@ func _update_speed_label() -> void:
 	if not (_speed_label and is_instance_valid(_speed_label)):
 		var label := Label3D.new()
 		label.name = "SpeedLabel"
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = true
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
