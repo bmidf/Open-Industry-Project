@@ -275,6 +275,15 @@ func _segments_total_length() -> float:
 		show_speed_label = value
 		_update_speed_label()
 
+## Display the speed label in feet per minute instead of m/s.
+@export var speed_label_fpm: bool = true:
+	set(value):
+		if value == speed_label_fpm:
+			return
+		speed_label_fpm = value
+		if _speed_label and is_instance_valid(_speed_label):
+			_speed_label.text = _speed_label_text()
+
 @export var belt_color: Color = Color.WHITE:
 	set(value):
 		belt_color = value
@@ -1279,7 +1288,12 @@ static func _basis_with_y_along(dir: Vector3) -> Basis:
 	return Basis(right, dir, up)
 
 
+const _MS_TO_FPM: float = 196.850394
+
+
 func _speed_label_text() -> String:
+	if speed_label_fpm:
+		return "%.0f" % (speed * _MS_TO_FPM)
 	return "%.2f" % speed
 
 
