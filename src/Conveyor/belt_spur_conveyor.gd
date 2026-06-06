@@ -101,7 +101,7 @@ const _GAP_FILL_DEPTH: float = 0.05
 		flip_speed_label = value
 		_update_speed_label()
 
-## Interpret incoming speed values (inspector and comms tag) as feet per minute.
+## Interpret incoming speed values (inspector and comms tag) as feet per minute.[br]The speed tag is then read as [code]DINT[/code] instead of [code]REAL[/code].
 @export var speed_in_fpm: bool = false:
 	set(value):
 		if value == speed_in_fpm:
@@ -1111,7 +1111,7 @@ func _physics_process(delta: float) -> void:
 
 func _on_simulation_started() -> void:
 	if enable_comms:
-		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_FLOAT32)
+		_speed_tag.register(speed_tag_group_name, speed_tag_name, OIPComms.TAG_TYPE_INT32 if speed_in_fpm else OIPComms.TAG_TYPE_FLOAT32)
 		_running_tag.register(running_tag_group_name, running_tag_name, OIPComms.TAG_TYPE_BOOL)
 
 
@@ -1144,8 +1144,10 @@ func _tag_group_polled(tag_group_name_param: String) -> void:
 	if not enable_comms:
 		return
 	if _speed_tag.matches_group(tag_group_name_param):
-		var tag_speed: float = _speed_tag.read_float32()
-		speed = tag_speed / _MS_TO_FPM if speed_in_fpm else tag_speed
+		if speed_in_fpm:
+			speed = float(_speed_tag.read_int32()) / _MS_TO_FPM
+		else:
+			speed = _speed_tag.read_float32()
 
 
 func _remove_orphans_with_prefix(prefixes: Array, keep: PackedStringArray) -> void:
