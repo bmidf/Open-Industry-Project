@@ -1280,7 +1280,7 @@ static func _basis_with_y_along(dir: Vector3) -> Basis:
 
 
 func _speed_label_text() -> String:
-	return "%.2f m/s" % speed
+	return "%.2f" % speed
 
 
 func _update_speed_label() -> void:
@@ -1296,7 +1296,7 @@ func _update_speed_label() -> void:
 		label.no_depth_test = true
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		label.font_size = 256
+		label.font_size = 128
 		add_child(label, false, Node.INTERNAL_MODE_FRONT)
 		_speed_label = label
 	var bbox: AABB = local_bbox
