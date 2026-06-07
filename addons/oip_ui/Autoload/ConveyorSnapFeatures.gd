@@ -406,7 +406,9 @@ static func _align_straight_to_straight(
 		snap_transform.basis = new_basis
 		snap_transform.origin = contact - new_basis * sel_end_pos
 		# Y tracks the contact so elevated segments (Z-frame top, walk-thru hump) work.
-		snap_transform.origin.y = contact.y
+		# Subtract the feature's own height so parts whose snap point sits above their
+		# origin (e.g. a chute bed) land WITH the feature on the contact line.
+		snap_transform.origin.y = contact.y - sel_end_pos.y
 		var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
 		snapped_end = {"pos": sel_end_pos, "outward": sel_end_outward, "name": sel_end_name}
 		target_end = {"pos": contact_local, "outward": Vector3(0, 0, -1), "name": &"left_side"}
@@ -429,7 +431,7 @@ static func _align_straight_to_straight(
 		var new_basis: Basis = _apply_inclination(perp_basis, sel_inclination)
 		snap_transform.basis = new_basis
 		snap_transform.origin = contact - new_basis * sel_end_pos
-		snap_transform.origin.y = contact.y
+		snap_transform.origin.y = contact.y - sel_end_pos.y
 		var contact_local: Vector3 = tgt_xform.affine_inverse() * contact
 		snapped_end = {"pos": sel_end_pos, "outward": sel_end_outward, "name": sel_end_name}
 		target_end = {"pos": contact_local, "outward": Vector3(0, 0, 1), "name": &"right_side"}
