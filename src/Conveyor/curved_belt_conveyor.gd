@@ -232,7 +232,7 @@ func _collision_repositioned_undo(saved: Variant) -> void:
 		floor_plane = saved
 
 
-@export var leg_model_scene: PackedScene = preload("res://parts/ConveyorLegC.tscn"):
+@export var leg_model_scene: PackedScene = preload("res://parts/StraightLeg.tscn"):
 	set(value):
 		leg_model_scene = value
 		_rebuild_legs()
@@ -750,7 +750,7 @@ func _rebuild_legs() -> void:
 		var angle_rad: float = deg_to_rad(angle_deg)
 		var belt_bottom_local := Vector3(-sin(angle_rad) * avg_r, -height, cos(angle_rad) * avg_r)
 		var belt_bottom_world: Vector3 = node_xform * belt_bottom_local
-		var foot_v: Variant = ConveyorLeg.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
+		var foot_v: Variant = LegFooting.resolve_foot(self, belt_bottom_world, legs_normal_world, floor_plane)
 		if foot_v == null:
 			continue
 		var foot_world: Vector3 = foot_v
@@ -1002,12 +1002,12 @@ func _add_curved_frame_surface(mesh_instance: ArrayMesh, angle_radians: float,
 	var y_bottom: float = -mesh_height * sf
 
 	var frame_mesh := ConveyorFrameMesh.create_curved(
-			r_inner, r_outer, y_top, y_bottom, angle_radians, segments, sf)
+			r_inner, r_outer, y_top, y_bottom, angle_radians, segments, sf, true)
 	frame_mesh.surface_set_material(0, _metal_material)
 
-	var frame_arrays := frame_mesh.surface_get_arrays(0)
-	mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_arrays)
-	mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, _metal_material)
+	for s: int in range(frame_mesh.get_surface_count()):
+		mesh_instance.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, frame_mesh.surface_get_arrays(s))
+		mesh_instance.surface_set_material(mesh_instance.get_surface_count() - 1, frame_mesh.surface_get_material(s))
 
 	var fixed_roller_r: float = mesh_height / 2.0
 	var tangent_r: float = fixed_roller_r * 2.0
@@ -1108,9 +1108,9 @@ func _recalculate_speeds() -> void:
 	_update_belt_ends()
 
 func _physics_process(delta: float) -> void:
-	if ConveyorLeg.legs_state_changed(self, _legs_state):
+	if LegFooting.legs_state_changed(self, _legs_state):
 		_rebuild_legs()
-		_legs_state = ConveyorLeg.capture_leg_state(self)
+		_legs_state = LegFooting.capture_leg_state(self)
 	if not Simulation.is_running():
 		return
 	# Only re-push the angular velocity when it actually changes — same
