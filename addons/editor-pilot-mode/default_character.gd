@@ -6,6 +6,12 @@ extends CharacterBody3D
 @export var sprint_multiplier: float = 2.0
 @export var mouse_sensitivity: float = 0.1
 @export var jump_velocity: float = 4.5
+## Box throw speed (m/s) for a quick right-click tap (no charge).
+@export var throw_speed_min: float = 8.0
+## Box throw speed (m/s) at a fully charged right-click.
+@export var throw_speed: float = 25.0
+## Seconds of holding right-click to reach a full-power throw.
+@export var throw_charge_time: float = 1.0
 @export_range(20.0, 85.0, 0.5, "degrees") var floor_max_angle_degrees: float = 58.0
 @export_range(0.0, 2.0, 0.01) var floor_snap_distance: float = 0.35
 
@@ -34,6 +40,8 @@ var _interact_ray_query: PhysicsRayQueryParameters3D
 
 var held_box = null
 var _held_box_rigid: RigidBody3D
+## Seconds the right mouse button has been held while charging a throw.
+var _throw_charge: float = 0.0
 var held_pallet = null
 var _held_pallet_rigid: RigidBody3D
 var _pallet_offset: Vector3 = Vector3.ZERO
@@ -378,9 +386,41 @@ func _update_held_box(delta: float) -> void:
 
 	_interact_text.visible = false
 
+	# Hold right-click to charge a throw; release to hurl. Longer hold = harder.
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		_throw_charge = minf(_throw_charge + delta, throw_charge_time)
+		var pct := int(_throw_charge / maxf(throw_charge_time, 0.0001) * 100.0)
+		_interact_text.text = "Throw power: %d%%" % pct
+		_interact_text.visible = true
+		return
+	elif _throw_charge > 0.0:
+		# Right-click released this frame: throw with the charge built up.
+		throw_held_box(_throw_charge / maxf(throw_charge_time, 0.0001))
+		_throw_charge = 0.0
+		return
+
+	# Left-click / interact key drops the box in place.
 	var release := InputMap.has_action("interact") and Input.is_action_just_pressed("interact")
 	if release or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		release_held_box()
+
+
+## Launch the held box along the camera's forward axis. [param charge] is the
+## 0..1 charge ratio that interpolates between [member throw_speed_min] and
+## [member throw_speed].
+func throw_held_box(charge: float = 1.0) -> void:
+	if not held_box:
+		return
+	var rigid := _held_box_rigid
+	var speed := lerpf(throw_speed_min, throw_speed, clampf(charge, 0.0, 1.0))
+	var throw_dir := -_camera.global_transform.basis.z
+	rigid.gravity_scale = 1
+	rigid.freeze = false
+	rigid.angular_velocity = Vector3.ZERO
+	rigid.linear_velocity = throw_dir * speed
+	held_box = null
+	_held_box_rigid = null
+	_throw_charge = 0.0
 
 
 func release_held_box() -> void:
